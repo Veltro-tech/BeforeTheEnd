@@ -1,0 +1,37 @@
+[
+  { "character": "Sistem", "text": "--- CHAPTER III: CONFESSION ---" },
+  { "character": "Narator", "text": "Setelah dunia mulai runtuh dan ruang sidang terlempar ke langit, Ayu dan Raka memulai perjalanan mereka." },
+  { "character": "Narator", "text": "Namun mereka tidak bisa langsung menuju ke sana. Mereka harus melewati beberapa area yang merupakan manifestasi dari pikiran Ayu." },
+
+  { "character": "Sistem", "text": "--- AREA 1: RUANG ARSIP ---" },
+  { "character": "Narator", "text": "Ruangan ini dipenuhi kertas, laporan, catatan dosen, dan dokumen revisi yang tidak ada habisnya." },
+  { "character": "Ayu", "text": "Kenapa revisinya gak habis-habis..." },
+  { "character": "Raka", "text": "Karena lu gak pernah berhenti nyalahin diri sendiri." },
+  { "character": "Narator", "text": "Setiap kali Ayu membuang satu revisi, muncul sepuluh revisi baru." },
+  { "character": "Sistem", "text": "TRIGGER_PUZZLE_ARSIP" },
+  { "character": "Narator", "text": "(Di akhir area, Ayu menemukan sebuah meja kerja. Di atasnya terdapat catatan yang ditulis dengan tulisan tangannya sendiri.)" },
+  { "character": "Narator", "text": "(Catatan itu berbunyi: 'Aku takut gagal.')" },
+  { "character": "Ayu", "text": "Untuk pertama kalinya... aku sadar." },
+  { "character": "Ayu", "text": "Bukan sidangnya yang aku takutkan, Rak. Aku cuma takut mengecewakan semua orang." },
+
+  { "character": "Sistem", "text": "--- AREA 2: KORIDOR EKSPEKTASI ---" },
+  { "character": "Narator", "text": "Koridor panjang ini dipenuhi suara dosen, teman, keluarga, dan suara dirinya sendiri." },
+  { "character": "Voice", "text": "Kamu harus berhasil." },
+  { "character": "Voice", "text": "Kamu tidak boleh gagal." },
+  { "character": "Voice", "text": "Kamu harus sempurna." },
+  { "character": "Sistem", "text": "TRIGGER_PUZZLE_SUARA" },
+  { "character": "Narator", "text": "(Saat suara terakhir berhenti, pertahanan Ayu runtuh. Ia mulai menangis.)" },
+  { "character": "Ayu", "text": "Capek, Rak... Gw capek." },
+  { "character": "Narator", "text": "(Ayu mengaku bahwa ia sudah lama merasa lelah, tetapi tidak pernah berani mengatakannya kepada siapa pun.)" },
+  { "character": "Narator", "text": "(Raka hanya mendengarkan. Untuk pertama kalinya, ia tidak bercanda.)" },
+
+  { "character": "Sistem", "text": "--- AREA 3: TAMAN SENJA ---" },
+  { "character": "Narator", "text": "(Tempat tenang di tengah dunia yang mulai rusak. Mereka duduk di bangku taman.)" },
+  { "character": "Raka", "text": "Kalau semua ini selesai, lu mau ngapain?" },
+  { "character": "Ayu", "text": "Tidur seminggu." },
+  { "character": "Raka", "text": "Wah goals hidup banget. Terus, masa SMA lu gimana dulu?" },
+  { "character": "Ayu", "text": "Biasa aja... Makan, nugas, nongkrong. Eh, tapi gue kangen banget seblak depan sekolah." },
+  { "character": "Raka", "text": "Nah, itu baru mimpi setelah lulus yang bener." },
+  { "character": "Narator", "text": "(Untuk sesaat, Ayu lupa bahwa mereka sedang terjebak dalam dunia aneh.)" },
+  { "character": "Narator", "text": "(Ayu menatap Raka. Ada perasaan hangat yang mulai tumbuh di hatinya, meski tak pernah ia ucapkan.)" }
+]
