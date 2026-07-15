@@ -1,171 +1,356 @@
 package com.yogadhananjaya.beforetheend.screens;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.ScreenAdapter;
+import com.badlogic.gdx.audio.Music;
+import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.Animation;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.scenes.scene2d.InputEvent;
-import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.badlogic.gdx.scenes.scene2d.ui.Image;
-import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
-import com.badlogic.gdx.utils.ScreenUtils;
-import com.badlogic.gdx.utils.viewport.FitViewport;
-import com.badlogic.gdx.utils.viewport.Viewport;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator.FreeTypeFontParameter;
+import com.badlogic.gdx.math.Interpolation;
 import com.yogadhananjaya.beforetheend.BeforeTheEndGame;
 
 public class MainMenuScreen extends ScreenAdapter {
     final BeforeTheEndGame game;
+    OrthographicCamera camera;
     SpriteBatch batch;
 
-    // --- Variabel Animasi Full Background ---
-    Animation<TextureRegion> bgAnimation;
-    Texture bgSheet;
-    float stateTime;
+    BitmapFont font;         // Font kustom untuk menu
+    BitmapFont titleFont;    // Font kustom untuk judul utama
+    BitmapFont subTitleFont; // Font kustom untuk subtitle
 
-    // --- Variabel Kamera & UI ---
-    OrthographicCamera camera;
-    Viewport viewport;
-    Stage stage;
+    // Aset Gambar & Audio
+    Texture bgImage;
+    Texture blackScreen; // Digunakan untuk efek fade to black
+    Texture logoTexture;
+    Music bgMusic;
+    GlyphLayout glyphLayout;
+
+    // State Sistem
+    public enum MenuState {
+        SPLASH,
+        TITLE,
+        TRANSITION,
+        MENU
+    }
+    private MenuState currentState = MenuState.SPLASH;
+    private float stateTime = 0f;
+    private float splashTime = 0f;
+    private float transitionTime = 0f;
+    
+    // Konfigurasi Waktu
+    private final float FADE_IN_TIME = 2.0f;
+    private final float STAY_TIME = 3.0f;
+    private final float FADE_OUT_TIME = 2.0f;
+    private final float TRANSITION_DURATION = 1.0f;
+
+    // Variabel Menu
+    String[] menuItems = {"New Game", "Continue", "Chapter", "Setting", "Quit"};
+    int selectedIndex = 0;
+
+    // Variabel Logika
+    boolean hasSaveData = false; // Ubah ke true nanti jika sistem save sudah dibuat
+    boolean isFading = false;
+    float fadeAlpha = 0f;
 
     final float WORLD_WIDTH = 1280f;
     final float WORLD_HEIGHT = 720f;
 
-
-
     public MainMenuScreen(final BeforeTheEndGame game) {
         this.game = game;
-        batch = new SpriteBatch();
-
         camera = new OrthographicCamera();
-        viewport = new FitViewport(WORLD_WIDTH, WORLD_HEIGHT, camera);
+        camera.setToOrtho(false, WORLD_WIDTH, WORLD_HEIGHT);
 
-        stage = new Stage(viewport, batch);
-        Gdx.input.setInputProcessor(stage);
+        // Pastikan kita menggunakan batch dari class utama
+        batch = game.batch;
 
-        setupBackgroundAnimation();
-        setupButtons();
+        // Load Background (Pastikan file bg_mainmenu.png ada di folder assets/ui/)
+        bgImage = new Texture("ui/bg_mainmenu.png");
 
-        stateTime = 0f;
+        // Membuat tekstur hitam polos 1x1 pixel untuk efek redup
+        Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+        pixmap.setColor(Color.BLACK);
+        pixmap.fill();
+        blackScreen = new Texture(pixmap);
+        pixmap.dispose();
+
+        // Load Logo Texture
+        logoTexture = new Texture("ui/Paus.png");
+
+        // Initialize GlyphLayout
+        glyphLayout = new GlyphLayout();
+
+        // --- SETUP CUSTOM FONT (.TTF) UNTUK MENU ---
+        FreeTypeFontGenerator menuGenerator = new FreeTypeFontGenerator(Gdx.files.internal("fonts/Merriweather-VariableFont_opsz,wdth,wght.ttf"));
+        FreeTypeFontParameter menuParameter = new FreeTypeFontParameter();
+        menuParameter.size = 28;
+        menuParameter.color = Color.WHITE;
+        font = menuGenerator.generateFont(menuParameter);
+        menuGenerator.dispose();
+
+        // --- SETUP CUSTOM FONT (.TTF) UNTUK JUDUL ---
+        FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("fonts/judul.ttf"));
+        FreeTypeFontParameter parameter = new FreeTypeFontParameter();
+
+        // Atur Parameter untuk Judul Utama
+        parameter.size = 72;
+        parameter.color = Color.WHITE;
+        titleFont = generator.generateFont(parameter);
+
+        // Atur Parameter untuk Subtitle
+        parameter.size = 28;
+        parameter.color = Color.LIGHT_GRAY;
+        subTitleFont = generator.generateFont(parameter);
+
+        generator.dispose();
+
+        // --- SETUP BACKGROUND MUSIC ---
+        bgMusic = Gdx.audio.newMusic(Gdx.files.internal("music/music_mainmenu.mp3"));
+        bgMusic.setLooping(true);
+        bgMusic.setVolume(0.2f); // Santai mengayun, tidak kencang
+        bgMusic.play();
     }
 
-    private void setupBackgroundAnimation() {
-        // 1. Panggil sprite sheet full background kamu yang sudah BERSIH
-        bgSheet = new Texture("ui/bg_anim_sheet.png");
-
-        // 2. Tentukan jumlah kolom dan baris pada sprite sheet kamu
-        // (Misalnya gambar di atas disusun 3 ke samping, 3 ke bawah)
-        int cols = 3;
-        int rows = 3;
-
-        // 3. Hitung ukuran 1 frame layar penuh
-        int frameWidth = bgSheet.getWidth() / cols;
-        int frameHeight = bgSheet.getHeight() / rows;
-
-        // 4. Potong gambar
-        TextureRegion[][] tmp = TextureRegion.split(bgSheet, frameWidth, frameHeight);
-
-        // 5. Masukkan ke dalam array 1 Dimensi secara berurutan
-        // Kalikan cols * rows untuk mendapatkan total frame (contoh: 3x3 = 9 frame)
-        int totalFrames = cols * rows;
-        TextureRegion[] bgFrames = new TextureRegion[totalFrames];
-
-        int index = 0;
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
-                if (index < totalFrames) {
-                    bgFrames[index++] = tmp[i][j];
-                }
+    private void handleInput() {
+        if (currentState == MenuState.SPLASH) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER) || Gdx.input.isKeyJustPressed(Input.Keys.SPACE) || Gdx.input.justTouched()) {
+                currentState = MenuState.TITLE;
             }
+            return;
         }
 
-        // 6. Buat animasinya! (0.1f detik per frame biar gerakan anginnya smooth)
-        bgAnimation = new Animation<>(0.1f, bgFrames);
-        bgAnimation.setPlayMode(Animation.PlayMode.LOOP);
+        if (currentState == MenuState.TITLE) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER) || Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
+                currentState = MenuState.TRANSITION;
+                transitionTime = 0f;
+            }
+            return;
+        }
+
+        if (currentState == MenuState.MENU) {
+            // Jika sedang transisi redup, abaikan semua input
+            if (isFading) return;
+
+            if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
+                selectedIndex--;
+                if (selectedIndex < 0) selectedIndex = menuItems.length - 1;
+            }
+            else if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
+                selectedIndex++;
+                if (selectedIndex >= menuItems.length) selectedIndex = 0;
+            }
+            else if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
+                selectMenuItem();
+            }
+        }
     }
 
-    private void setupButtons() {
-        // Tombol New Game
-        Image btnNewGame = new Image();
-        btnNewGame.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                System.out.println("Tombol New Game Diklik!");
-
-                // <-- TAMBAHKAN DUA BARIS INI -->
-                game.setScreen(new ChapterOneScreen(game)); // Pindah ke Chapter 1
-                dispose(); // Bersihkan memori Main Menu
-            }
-        });
-        stage.addActor(btnNewGame);
-
-        // Tombol Continue
-        Image btnContinue = new Image();
-        btnContinue.setBounds(980, 190, 220, 45);
-        btnContinue.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                System.out.println("Tombol Continue Diklik!");
-            }
-        });
-        stage.addActor(btnContinue);
-
-        // Tombol Options
-        Image btnOptions = new Image();
-        btnOptions.setBounds(980, 130, 220, 45);
-        btnOptions.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                System.out.println("Tombol Options Diklik!");
-            }
-        });
-        stage.addActor(btnOptions);
-
-        // Tombol Quit
-        Image btnQuit = new Image();
-        btnQuit.setBounds(980, 70, 220, 45);
-        btnQuit.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
+    private void selectMenuItem() {
+        switch (selectedIndex) {
+            case 0: // New Game
+                System.out.println("Memulai New Game... Layar Meredup");
+                isFading = true; // Trigger animasi fade to black
+                break;
+            case 1: // Continue
+                if (hasSaveData) {
+                    System.out.println("Melanjutkan Permainan...");
+                } else {
+                    System.out.println("Tidak ada data save!");
+                }
+                break;
+            case 2: // Chapter
+                System.out.println("Membuka Pemilihan Chapter...");
+                break;
+            case 3: // Setting
+                System.out.println("Membuka Setting...");
+                break;
+            case 4: // Quit
+                System.out.println("Keluar dari Game...");
                 Gdx.app.exit();
-            }
-        });
-        stage.addActor(btnQuit);
-    }
-
-    @Override
-    public void resize(int width, int height) {
-        viewport.update(width, height, true);
+                break;
+        }
     }
 
     @Override
     public void render(float delta) {
         stateTime += delta;
 
-        ScreenUtils.clear(0, 0, 0, 1);
+        // Logika Transisi State
+        if (currentState == MenuState.SPLASH) {
+            splashTime += delta;
+            if (splashTime >= FADE_IN_TIME + STAY_TIME + FADE_OUT_TIME) {
+                currentState = MenuState.TITLE;
+            }
+        } else if (currentState == MenuState.TRANSITION) {
+            transitionTime += delta;
+            if (transitionTime >= TRANSITION_DURATION) {
+                currentState = MenuState.MENU;
+            }
+        }
+
+        handleInput();
+
+        Gdx.gl.glClearColor(0, 0, 0, 1);
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+
         camera.update();
         batch.setProjectionMatrix(camera.combined);
 
+        // 1. Render Splash Screen
+        if (currentState == MenuState.SPLASH) {
+            batch.begin();
+
+            float alpha;
+            if (splashTime < FADE_IN_TIME) {
+                alpha = splashTime / FADE_IN_TIME;
+            } else if (splashTime < FADE_IN_TIME + STAY_TIME) {
+                alpha = 1f;
+            } else if (splashTime < FADE_IN_TIME + STAY_TIME + FADE_OUT_TIME) {
+                alpha = 1f - (splashTime - FADE_IN_TIME - STAY_TIME) / FADE_OUT_TIME;
+            } else {
+                alpha = 0f;
+            }
+
+            // Center the Paus.png logo
+            float logoWidth = logoTexture.getWidth();
+            float logoHeight = logoTexture.getHeight();
+            float logoX = (WORLD_WIDTH - logoWidth) / 2;
+            float logoY = (WORLD_HEIGHT - logoHeight) / 2;
+
+            batch.setColor(1, 1, 1, alpha);
+            batch.draw(logoTexture, logoX, logoY, logoWidth, logoHeight);
+            batch.setColor(Color.WHITE);
+
+            batch.end();
+            return;
+        }
+
+        // 2. Render Main Game Menu Screens (TITLE, TRANSITION, MENU)
         batch.begin();
 
-        // Ambil frame animasi saat ini
-        TextureRegion currentBgFrame = bgAnimation.getKeyFrame(stateTime, true);
+        // Selalu gambar background menu utama
+        batch.draw(bgImage, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
-        // Gambar animasi tersebut langsung memenuhi layar (0, 0 sampai WORLD_WIDTH, WORLD_HEIGHT)
-        batch.draw(currentBgFrame, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+        // Hitung Posisi Title & Subtitle berdasarkan state
+        float titleX, titleY;
+        float subX, subY;
+        
+        glyphLayout.setText(titleFont, "BEFORE THE END");
+        float centerTitleX = (WORLD_WIDTH - glyphLayout.width) / 2;
+        float centerTitleY = 450f;
+
+        glyphLayout.setText(subTitleFont, "A GAME BY GROUP 5");
+        float centerSubX = (WORLD_WIDTH - glyphLayout.width) / 2;
+        float centerSubY = centerTitleY - 80f;
+
+        float targetTitleX = 80f;
+        float targetTitleY = WORLD_HEIGHT - 60f;
+        float targetSubX = 85f;
+        float targetSubY = WORLD_HEIGHT - 140f;
+
+        if (currentState == MenuState.TITLE) {
+            titleX = centerTitleX;
+            titleY = centerTitleY;
+            subX = centerSubX;
+            subY = centerSubY;
+        } else if (currentState == MenuState.TRANSITION) {
+            float progress = transitionTime / TRANSITION_DURATION;
+            titleX = Interpolation.pow3Out.apply(centerTitleX, targetTitleX, progress);
+            titleY = Interpolation.pow3Out.apply(centerTitleY, targetTitleY, progress);
+            subX = Interpolation.pow3Out.apply(centerSubX, targetSubX, progress);
+            subY = Interpolation.pow3Out.apply(centerSubY, targetSubY, progress);
+        } else {
+            titleX = targetTitleX;
+            titleY = targetTitleY;
+            subX = targetSubX;
+            subY = targetSubY;
+        }
+
+        // Gambar Judul dan Subtitle
+        titleFont.draw(batch, "BEFORE THE END", titleX, titleY);
+        subTitleFont.draw(batch, "A GAME BY GROUP 5", subX, subY);
+
+        // Render Press Enter To Start (Hanya saat TITLE atau TRANSITION)
+        if (currentState == MenuState.TITLE || currentState == MenuState.TRANSITION) {
+            glyphLayout.setText(font, "Press Enter To Start");
+            float pressX = (WORLD_WIDTH - glyphLayout.width) / 2;
+            float pressY = 200f;
+            
+            float pressAlpha = 0f;
+            if (currentState == MenuState.TITLE) {
+                pressAlpha = (float) Math.abs(Math.sin(stateTime * 3f));
+            } else {
+                // Fade out Press Enter during transition
+                pressAlpha = 1f - (transitionTime / TRANSITION_DURATION);
+            }
+            
+            font.setColor(1, 1, 1, pressAlpha);
+            font.draw(batch, "Press Enter To Start", pressX, pressY);
+            font.setColor(Color.WHITE);
+        }
+
+        // Render Menu Items (Hanya saat TRANSITION atau MENU)
+        if (currentState == MenuState.TRANSITION || currentState == MenuState.MENU) {
+            float startX = 80f;
+            float startY = 320f;
+            float spacing = 50f;
+
+            float menuAlpha = 1f;
+            if (currentState == MenuState.TRANSITION) {
+                menuAlpha = transitionTime / TRANSITION_DURATION; // Fade-in effect on left side
+            }
+
+            for (int i = 0; i < menuItems.length; i++) {
+                Color itemColor;
+                if (i == 1 && !hasSaveData) {
+                    itemColor = Color.DARK_GRAY.cpy();
+                } else if (i == selectedIndex) {
+                    itemColor = Color.YELLOW.cpy();
+                } else {
+                    itemColor = Color.WHITE.cpy();
+                }
+                
+                itemColor.a = menuAlpha;
+                font.setColor(itemColor);
+
+                String text = (i == selectedIndex) ? "> " + menuItems[i] : menuItems[i];
+                font.draw(batch, text, startX, startY - (i * spacing));
+            }
+            font.setColor(Color.WHITE);
+        }
+
+        // Logika Efek Fade-to-Black & Audio Fade-out
+        if (isFading) {
+            fadeAlpha += delta * 1.0f;
+            if (fadeAlpha >= 1f) {
+                fadeAlpha = 1f;
+                bgMusic.stop();
+            } else {
+                bgMusic.setVolume(0.2f * (1f - fadeAlpha)); // Fade out volume
+            }
+            batch.setColor(1, 1, 1, fadeAlpha);
+            batch.draw(blackScreen, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+            batch.setColor(Color.WHITE); // Reset warna agar render berikutnya aman
+        }
 
         batch.end();
-
-        stage.act(delta);
-        stage.draw();
     }
 
     @Override
     public void dispose() {
-        batch.dispose();
-        stage.dispose();
-        if (bgSheet != null) bgSheet.dispose();
+        bgImage.dispose();
+        blackScreen.dispose();
+        logoTexture.dispose();
+        font.dispose();
+        titleFont.dispose();
+        subTitleFont.dispose();
+        bgMusic.dispose();
     }
 }
