@@ -15,8 +15,8 @@ public class PuzzleScreen extends ScreenAdapter {
     final BeforeTheEndGame game;
 
     // Referensi ke parent screen agar bisa kembali melanjutkan dialog
-    final ChapterThreeScreen ch3Parent;
-    final ChapterFourScreen ch4Parent;
+    final Chapter_One_ThreeScreen ch3Parent;
+    final Chapter_One_FourScreen ch4Parent;
 
     String puzzleType;
 
@@ -74,7 +74,7 @@ public class PuzzleScreen extends ScreenAdapter {
 
 
     // --- CONSTRUCTOR ---
-    public PuzzleScreen(BeforeTheEndGame game, ChapterThreeScreen ch3, ChapterFourScreen ch4, String puzzleType) {
+    public PuzzleScreen(BeforeTheEndGame game, Chapter_One_ThreeScreen ch3, Chapter_One_FourScreen ch4, String puzzleType) {
         this.game = game;
         this.ch3Parent = ch3;
         this.ch4Parent = ch4;

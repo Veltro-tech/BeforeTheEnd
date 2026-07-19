@@ -19,7 +19,7 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Stack;
 
-public class ChapterFiveScreen extends ScreenAdapter {
+public class Chapter_One_FiveScreen extends ScreenAdapter {
     final BeforeTheEndGame game;
     OrthographicCamera camera;
     SpriteBatch batch;
@@ -75,7 +75,7 @@ public class ChapterFiveScreen extends ScreenAdapter {
     final float WORLD_WIDTH = 1280f;
     final float WORLD_HEIGHT = 720f;
 
-    public ChapterFiveScreen(final BeforeTheEndGame game) {
+    public Chapter_One_FiveScreen(final BeforeTheEndGame game) {
         this.game = game;
         camera = new OrthographicCamera();
         camera.setToOrtho(false, WORLD_WIDTH, WORLD_HEIGHT);
@@ -93,13 +93,19 @@ public class ChapterFiveScreen extends ScreenAdapter {
     }
 
     private void setupAyuAnimation() {
-        ayuIdleSheet = new Texture("characters/ayu_idle_sheet.png");
-        int frameWidth = ayuIdleSheet.getWidth() / 6;
-        int frameHeight = ayuIdleSheet.getHeight();
-        TextureRegion[][] tmp = TextureRegion.split(ayuIdleSheet, frameWidth, frameHeight);
-        TextureRegion[] idleFrames = new TextureRegion[6];
-        System.arraycopy(tmp[0], 0, idleFrames, 0, 6);
-        ayuIdleAnim = new Animation<>(0.2f, idleFrames);
+        if (Gdx.files.internal("characters/ayu_idle_sheet.png").exists()) {
+            ayuIdleSheet = new Texture("characters/ayu_idle_sheet.png");
+            int frameWidth = ayuIdleSheet.getWidth() / 6;
+            int frameHeight = ayuIdleSheet.getHeight();
+            TextureRegion[][] tmp = TextureRegion.split(ayuIdleSheet, frameWidth, frameHeight);
+            TextureRegion[] idleFrames = new TextureRegion[6];
+            System.arraycopy(tmp[0], 0, idleFrames, 0, 6);
+            ayuIdleAnim = new Animation<>(0.2f, idleFrames);
+        } else {
+            ayuIdleSheet = new Texture("character/Ayu/diam.png");
+            TextureRegion[] idleFrames = new TextureRegion[] { new TextureRegion(ayuIdleSheet) };
+            ayuIdleAnim = new Animation<>(0.2f, idleFrames);
+        }
         ayuIdleAnim.setPlayMode(Animation.PlayMode.LOOP);
     }
 

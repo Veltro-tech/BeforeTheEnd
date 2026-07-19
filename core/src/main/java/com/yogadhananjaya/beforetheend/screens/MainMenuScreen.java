@@ -72,7 +72,17 @@ public class MainMenuScreen extends ScreenAdapter {
         batch = game.batch;
 
         // Load Background (Pastikan file bg_mainmenu.png ada di folder assets/ui/)
-        bgImage = new Texture("ui/bg_mainmenu.png");
+        if (Gdx.files.internal("ui/bg_mainmenu.png").exists()) {
+            bgImage = new Texture("ui/bg_mainmenu.png");
+        } else if (Gdx.files.internal("libgdx.png").exists()) {
+            bgImage = new Texture("libgdx.png");
+        } else {
+            Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+            pixmap.setColor(Color.BLUE);
+            pixmap.fill();
+            bgImage = new Texture(pixmap);
+            pixmap.dispose();
+        }
 
         // Membuat tekstur hitam polos 1x1 pixel untuk efek redup
         Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
@@ -82,40 +92,63 @@ public class MainMenuScreen extends ScreenAdapter {
         pixmap.dispose();
 
         // Load Logo Texture
-        logoTexture = new Texture("ui/Paus.png");
+        if (Gdx.files.internal("ui/Paus.png").exists()) {
+            logoTexture = new Texture("ui/Paus.png");
+        } else if (Gdx.files.internal("libgdx.png").exists()) {
+            logoTexture = new Texture("libgdx.png");
+        } else {
+            Pixmap pixmapLogo = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+            pixmapLogo.setColor(Color.RED);
+            pixmapLogo.fill();
+            logoTexture = new Texture(pixmapLogo);
+            pixmapLogo.dispose();
+        }
 
         // Initialize GlyphLayout
         glyphLayout = new GlyphLayout();
 
         // --- SETUP CUSTOM FONT (.TTF) UNTUK MENU ---
-        FreeTypeFontGenerator menuGenerator = new FreeTypeFontGenerator(Gdx.files.internal("fonts/Merriweather-VariableFont_opsz,wdth,wght.ttf"));
-        FreeTypeFontParameter menuParameter = new FreeTypeFontParameter();
-        menuParameter.size = 28;
-        menuParameter.color = Color.WHITE;
-        font = menuGenerator.generateFont(menuParameter);
-        menuGenerator.dispose();
+        if (Gdx.files.internal("fonts/Merriweather-VariableFont_opsz,wdth,wght.ttf").exists()) {
+            FreeTypeFontGenerator menuGenerator = new FreeTypeFontGenerator(Gdx.files.internal("fonts/Merriweather-VariableFont_opsz,wdth,wght.ttf"));
+            FreeTypeFontParameter menuParameter = new FreeTypeFontParameter();
+            menuParameter.size = 28;
+            menuParameter.color = Color.WHITE;
+            font = menuGenerator.generateFont(menuParameter);
+            menuGenerator.dispose();
+        } else {
+            font = new BitmapFont();
+        }
 
         // --- SETUP CUSTOM FONT (.TTF) UNTUK JUDUL ---
-        FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("fonts/judul.ttf"));
-        FreeTypeFontParameter parameter = new FreeTypeFontParameter();
+        if (Gdx.files.internal("fonts/judul.ttf").exists()) {
+            FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("fonts/judul.ttf"));
+            FreeTypeFontParameter parameter = new FreeTypeFontParameter();
 
-        // Atur Parameter untuk Judul Utama
-        parameter.size = 72;
-        parameter.color = Color.WHITE;
-        titleFont = generator.generateFont(parameter);
+            // Atur Parameter untuk Judul Utama
+            parameter.size = 72;
+            parameter.color = Color.WHITE;
+            titleFont = generator.generateFont(parameter);
 
-        // Atur Parameter untuk Subtitle
-        parameter.size = 28;
-        parameter.color = Color.LIGHT_GRAY;
-        subTitleFont = generator.generateFont(parameter);
+            // Atur Parameter untuk Subtitle
+            parameter.size = 28;
+            parameter.color = Color.LIGHT_GRAY;
+            subTitleFont = generator.generateFont(parameter);
 
-        generator.dispose();
+            generator.dispose();
+        } else {
+            titleFont = new BitmapFont();
+            titleFont.getData().setScale(3.0f);
+            subTitleFont = new BitmapFont();
+            subTitleFont.getData().setScale(1.5f);
+        }
 
         // --- SETUP BACKGROUND MUSIC ---
-        bgMusic = Gdx.audio.newMusic(Gdx.files.internal("music/music_mainmenu.mp3"));
-        bgMusic.setLooping(true);
-        bgMusic.setVolume(0.2f); // Santai mengayun, tidak kencang
-        bgMusic.play();
+        if (Gdx.files.internal("music/music_mainmenu.mp3").exists()) {
+            bgMusic = Gdx.audio.newMusic(Gdx.files.internal("music/music_mainmenu.mp3"));
+            bgMusic.setLooping(true);
+            bgMusic.setVolume(0.2f); // Santai mengayun, tidak kencang
+            bgMusic.play();
+        }
     }
 
     private void handleInput() {
@@ -331,9 +364,10 @@ public class MainMenuScreen extends ScreenAdapter {
             fadeAlpha += delta * 1.0f;
             if (fadeAlpha >= 1f) {
                 fadeAlpha = 1f;
-                bgMusic.stop();
+                if (bgMusic != null) bgMusic.stop();
+                game.setScreen(new Chapter_One_OneScreen(game));
             } else {
-                bgMusic.setVolume(0.2f * (1f - fadeAlpha)); // Fade out volume
+                if (bgMusic != null) bgMusic.setVolume(0.2f * (1f - fadeAlpha)); // Fade out volume
             }
             batch.setColor(1, 1, 1, fadeAlpha);
             batch.draw(blackScreen, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
@@ -351,6 +385,6 @@ public class MainMenuScreen extends ScreenAdapter {
         font.dispose();
         titleFont.dispose();
         subTitleFont.dispose();
-        bgMusic.dispose();
+        if (bgMusic != null) bgMusic.dispose();
     }
 }

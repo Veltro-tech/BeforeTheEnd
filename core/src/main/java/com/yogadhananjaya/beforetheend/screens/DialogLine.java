@@ -7,4 +7,9 @@ public class DialogLine {
 
     // LibGDX butuh constructor kosong untuk baca JSON
     public DialogLine() {}
+
+    public DialogLine(String character, String text) {
+        this.character = character;
+        this.text = text;
+    }
 }
