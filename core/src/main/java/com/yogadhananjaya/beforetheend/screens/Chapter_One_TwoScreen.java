@@ -6,6 +6,7 @@ import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
@@ -19,7 +20,7 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Stack;
 
-public class ChapterFourScreen extends ScreenAdapter {
+public class Chapter_One_TwoScreen extends ScreenAdapter {
     final BeforeTheEndGame game;
     OrthographicCamera camera;
     SpriteBatch batch;
@@ -30,9 +31,9 @@ public class ChapterFourScreen extends ScreenAdapter {
     Texture ayuIdleSheet;
     float stateTime;
 
+    // --- DATA STRUCTURE: QUEUE ---
     Queue<DialogLine> dialogQueue;
     DialogLine currentDialog;
-    Stack<String> gameStateStack;
 
     String targetText = "";
     String displayedText = "";
@@ -40,13 +41,18 @@ public class ChapterFourScreen extends ScreenAdapter {
     float typeSpeed = 0.04f;
     int charIndex = 0;
 
-    // Warna dasar: Biru gelap (langit retak)
-    Color bgColor = new Color(0.15f, 0.15f, 0.2f, 1);
+    // --- DATA STRUCTURE: STACK ---
+    Stack<String> gameStateStack;
+
+    boolean isPuzzleActive = false;
+    boolean isBossFightActive = false;
+
+    Color bgColor = new Color(0.2f, 0.2f, 0.25f, 1);
 
     final float WORLD_WIDTH = 1280f;
     final float WORLD_HEIGHT = 720f;
 
-    public ChapterFourScreen(final BeforeTheEndGame game) {
+    public Chapter_One_TwoScreen(final BeforeTheEndGame game) {
         this.game = game;
         camera = new OrthographicCamera();
         camera.setToOrtho(false, WORLD_WIDTH, WORLD_HEIGHT);
@@ -59,76 +65,82 @@ public class ChapterFourScreen extends ScreenAdapter {
         gameStateStack.push("PLAYING");
 
         setupAyuAnimation();
+
         dialogQueue = new LinkedList<>();
         loadDialogData();
     }
 
     private void setupAyuAnimation() {
-        ayuIdleSheet = new Texture("characters/ayu_idle_sheet.png");
-        int frameWidth = ayuIdleSheet.getWidth() / 6;
-        int frameHeight = ayuIdleSheet.getHeight();
-        TextureRegion[][] tmp = TextureRegion.split(ayuIdleSheet, frameWidth, frameHeight);
-        TextureRegion[] idleFrames = new TextureRegion[6];
-        System.arraycopy(tmp[0], 0, idleFrames, 0, 6);
-        ayuIdleAnim = new Animation<>(0.2f, idleFrames);
+        if (Gdx.files.internal("characters/ayu_idle_sheet.png").exists()) {
+            ayuIdleSheet = new Texture("characters/ayu_idle_sheet.png");
+            int frameWidth = ayuIdleSheet.getWidth() / 6;
+            int frameHeight = ayuIdleSheet.getHeight();
+            TextureRegion[][] tmp = TextureRegion.split(ayuIdleSheet, frameWidth, frameHeight);
+            TextureRegion[] idleFrames = new TextureRegion[6];
+            System.arraycopy(tmp[0], 0, idleFrames, 0, 6);
+            ayuIdleAnim = new Animation<>(0.2f, idleFrames);
+        } else {
+            if (Gdx.files.internal("character/Ayu/diam-2.png").exists()) {
+                ayuIdleSheet = new Texture("character/Ayu/diam-2.png");
+            } else {
+                Pixmap pm = new Pixmap(64, 128, Pixmap.Format.RGBA8888);
+                pm.setColor(Color.PINK);
+                pm.fill();
+                ayuIdleSheet = new Texture(pm);
+                pm.dispose();
+            }
+            TextureRegion[] idleFrames = new TextureRegion[] { new TextureRegion(ayuIdleSheet) };
+            ayuIdleAnim = new Animation<>(0.2f, idleFrames);
+        }
         ayuIdleAnim.setPlayMode(Animation.PlayMode.LOOP);
+        stateTime = 0f;
     }
 
     private void loadDialogData() {
         Json json = new Json();
-        Array<DialogLine> tempArray = json.fromJson(Array.class, DialogLine.class, Gdx.files.internal("data/chapter4_dialog.json"));
+        Array<DialogLine> tempArray = json.fromJson(Array.class, DialogLine.class, Gdx.files.internal("data/chapter2_dialog.json"));
+
         for (DialogLine line : tempArray) {
             dialogQueue.add(line);
         }
+
         dequeueNextDialog();
     }
 
-    public void resumeStory() {
-        gameStateStack.push("PLAYING");
-        dequeueNextDialog();
-    }
-
+    // --- LOGIKA AUTO-SKIP (Perbaikan Utama) ---
     private void dequeueNextDialog() {
         if (!dialogQueue.isEmpty()) {
             currentDialog = dialogQueue.poll();
 
+            // 1. Jika teks Narator -> Lewati tanpa menampilkan apapun
             if (currentDialog.character.equals("Narator")) {
-                dequeueNextDialog();
-                return;
+                dequeueNextDialog(); // Panggil fungsi ini lagi secara berulang
+                return; // Hentikan eksekusi yang sekarang
             }
 
+            // 2. Jika teks Sistem -> Eksekusi logikanya secara sembunyi-sembunyi, lalu lewati
             if (currentDialog.character.equals("Sistem")) {
                 String sysText = currentDialog.text;
 
-                // Transisi Lingkungan
-                if (sysText.contains("RUANG HAMPA")) {
-                    bgColor.set(0.0f, 0.0f, 0.0f, 1); // Hitam total
-                } else if (sysText.contains("LORONG SMA")) {
-                    bgColor.set(0.3f, 0.2f, 0.15f, 1); // Sepia/kusam untuk memory
-                }
-
-                // Trigger Puzzle
-                if (sysText.equals("TRIGGER_PUZZLE_MEMORY")) {
-                    gameStateStack.push("IN_PUZZLE");
-                    game.setScreen(new PuzzleScreen(game, null, this, "GRAPH_MEMORY"));
-                    return;
-                }
-
-                // Trigger Boss Terakhir
-                if (sysText.equals("TRIGGER_ECHO_APPEAR")) {
-                    System.out.println("Transisi ke Layar Final Battle...");
-                    // game.setScreen(new BossFightScreen(game));
-                    return;
+                if (sysText.contains("LOOP")) {
+                    bgColor.set(0f, 0f, 0f, 1); // Bikin background gelap
+                } else if (sysText.equals("TRIGGER_PUZZLE")) {
+                    isPuzzleActive = true;
+                } else if (sysText.equals("TRIGGER_BOSS_FIGHT")) {
+                    isBossFightActive = true;
                 }
 
                 dequeueNextDialog();
                 return;
             }
 
+            // 3. Jika karakter manusia biasa yang bicara, jalankan mesin tik-nya
+            bgColor.set(0.2f, 0.2f, 0.25f, 1); // Kembalikan warna background normal
             targetText = currentDialog.text;
             displayedText = "";
             charIndex = 0;
             textTimer = 0f;
+
         } else {
             currentDialog = null;
         }
@@ -146,12 +158,15 @@ public class ChapterFourScreen extends ScreenAdapter {
     }
 
     private void handleInput() {
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE) && !gameStateStack.peek().equals("IN_PUZZLE")) {
-            if (gameStateStack.peek().equals("PLAYING")) gameStateStack.push("PAUSED");
-            else if (gameStateStack.peek().equals("PAUSED")) gameStateStack.pop();
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            if (gameStateStack.peek().equals("PLAYING")) {
+                gameStateStack.push("PAUSED");
+            } else if (gameStateStack.peek().equals("PAUSED")) {
+                gameStateStack.pop();
+            }
         }
 
-        if (!gameStateStack.peek().equals("PLAYING")) return;
+        if (!gameStateStack.peek().equals("PLAYING") || isPuzzleActive || isBossFightActive) return;
 
         if (Gdx.input.justTouched()) {
             if (charIndex < targetText.length()) {
@@ -166,30 +181,41 @@ public class ChapterFourScreen extends ScreenAdapter {
     @Override
     public void render(float delta) {
         stateTime += delta;
+
         handleInput();
 
-        if (gameStateStack.peek().equals("PLAYING")) updateTypewriter(delta);
+        if (gameStateStack.peek().equals("PLAYING") && !isPuzzleActive && !isBossFightActive) {
+            updateTypewriter(delta);
+        }
 
         Gdx.gl.glClearColor(bgColor.r, bgColor.g, bgColor.b, bgColor.a);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+
         camera.update();
         batch.setProjectionMatrix(camera.combined);
+
         batch.begin();
 
-        batch.draw(ayuIdleAnim.getKeyFrame(stateTime), 150, 220);
+        TextureRegion currentIdle = ayuIdleAnim.getKeyFrame(stateTime);
+        batch.draw(currentIdle, 150, 220);
 
-        if (currentDialog != null && gameStateStack.peek().equals("PLAYING")) {
+        // --- RENDER TEXTBOX JAUH LEBIH BERSIH ---
+        // Kita tidak perlu lagi mengecek if (Narator / Sistem) karena sudah disaring di atas!
+        if (currentDialog != null && !isPuzzleActive && !isBossFightActive) {
             batch.draw(textbox, 50, 20, 1180, 200);
 
             font.setColor(Color.YELLOW);
             font.draw(batch, currentDialog.character, 90, 180);
+
             font.setColor(Color.WHITE);
             font.draw(batch, displayedText, 90, 130);
         }
 
         if (gameStateStack.peek().equals("PAUSED")) {
+            font.getData().setScale(3f);
             font.setColor(Color.RED);
-            font.draw(batch, "PAUSED", WORLD_WIDTH/2 - 50, WORLD_HEIGHT/2);
+            font.draw(batch, "PAUSED", WORLD_WIDTH/2 - 100, WORLD_HEIGHT/2);
+            font.getData().setScale(2f);
         }
 
         batch.end();

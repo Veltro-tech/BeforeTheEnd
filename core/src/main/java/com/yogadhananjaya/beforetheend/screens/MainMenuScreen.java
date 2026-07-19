@@ -365,7 +365,7 @@ public class MainMenuScreen extends ScreenAdapter {
             if (fadeAlpha >= 1f) {
                 fadeAlpha = 1f;
                 if (bgMusic != null) bgMusic.stop();
-                game.setScreen(new ChapterOneScreen(game));
+                game.setScreen(new Chapter_One_OneScreen(game));
             } else {
                 if (bgMusic != null) bgMusic.setVolume(0.2f * (1f - fadeAlpha)); // Fade out volume
             }
