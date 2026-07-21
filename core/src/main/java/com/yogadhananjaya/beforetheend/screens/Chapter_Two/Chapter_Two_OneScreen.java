@@ -3,6 +3,7 @@ package com.yogadhananjaya.beforetheend.screens.Chapter_Two;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.ScreenAdapter;
+import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
@@ -121,6 +122,9 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
     private final String[] nightmarePhrases = { "Gagal", "Semua hancur", "Tidak ada waktu", "Kamu terlambat", "Sia-sia",
             "Sudah berakhir" };
     private float textSpawnTimer = 0f;
+    private Sound heartbeatSfx;
+    private Sound nightmareBreathingSfx;
+    private boolean nightmareSfxPlaying = false;
     boolean phoneTriggerQueued = false;
     boolean lobbyExploring = false;
 
@@ -189,6 +193,11 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
         }
 
         setupDialogQueue();
+
+        if (Gdx.files.internal("SFX/heartbeat.mp3").exists())
+            heartbeatSfx = Gdx.audio.newSound(Gdx.files.internal("SFX/heartbeat.mp3"));
+        if (Gdx.files.internal("SFX/tunetank.com_breathing-heavily-female.wav").exists())
+            nightmareBreathingSfx = Gdx.audio.newSound(Gdx.files.internal("SFX/tunetank.com_breathing-heavily-female.wav"));
     }
 
     private Texture createSolidTexture(Color color, int w, int h) {
@@ -198,6 +207,12 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
         Texture tex = new Texture(pm);
         pm.dispose();
         return tex;
+    }
+
+    private void stopNightmareSfx() {
+        nightmareSfxPlaying = false;
+        if (heartbeatSfx != null) heartbeatSfx.stop();
+        if (nightmareBreathingSfx != null) nightmareBreathingSfx.stop();
     }
 
     private void setupAnimations() {
@@ -433,6 +448,7 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
 
         // Debug: F7 restart ke scene 7-A
         if (Gdx.input.isKeyJustPressed(Input.Keys.F7)) {
+            stopNightmareSfx();
             currentSubScene = SubScene.NIGHTMARE;
             subsceneTimer = 0f;
             nightmareTexts.clear();
@@ -560,6 +576,11 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
 
         // Subscene Update Logic
         if (currentSubScene == SubScene.NIGHTMARE) {
+            if (!nightmareSfxPlaying) {
+                nightmareSfxPlaying = true;
+                if (heartbeatSfx != null) heartbeatSfx.loop(0.6f);
+                if (nightmareBreathingSfx != null) nightmareBreathingSfx.loop(0.5f);
+            }
             subsceneTimer += delta;
             textSpawnTimer += delta;
             if (textSpawnTimer >= 0.3f) {
@@ -572,10 +593,12 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
                 nightmareTexts.add(new NightmareText(phrase, x, y, scale, color));
             }
             if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+                stopNightmareSfx();
                 currentSubScene = SubScene.WAKING_UP;
                 subsceneTimer = 0f;
                 nightmareTexts.clear();
             } else if (subsceneTimer >= 10.0f) {
+                stopNightmareSfx();
                 currentSubScene = SubScene.WAKING_UP;
                 subsceneTimer = 0f;
                 nightmareTexts.clear();
@@ -1024,6 +1047,9 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
 
     @Override
     public void dispose() {
+        stopNightmareSfx();
+        if (heartbeatSfx != null) heartbeatSfx.dispose();
+        if (nightmareBreathingSfx != null) nightmareBreathingSfx.dispose();
         batch.dispose();
         font.dispose();
         textbox.dispose();
