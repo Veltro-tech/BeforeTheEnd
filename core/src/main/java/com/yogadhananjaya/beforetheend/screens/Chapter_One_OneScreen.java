@@ -3,6 +3,7 @@ package com.yogadhananjaya.beforetheend.screens;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.ScreenAdapter;
+import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
@@ -202,6 +203,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
     private boolean showingChoice = false;
     private int roomChoice = 0;
     private Sound messageSfx;
+    private Music bgmMusic;
     private long currentSfxId = -1;
 
     private final float WORLD_WIDTH = 1920f;
@@ -217,6 +219,15 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         this.glyphLayout = new GlyphLayout();
 
         loadAssets();
+    }
+
+    @Override
+    public void show() {
+        if (bgmMusic != null) {
+            bgmMusic.setLooping(true);
+            bgmMusic.setVolume(0.4f);
+            bgmMusic.play();
+        }
     }
 
     private Texture createSolidTexture(Color color, int width, int height) {
@@ -244,8 +255,8 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         }
 
         // Kitchen BG (dapur3.png)
-        if (Gdx.files.internal("backgrounds/dapur-4.png").exists()) {
-            kitchenBg = new Texture("backgrounds/dapur-4.png");
+        if (Gdx.files.internal("backgrounds/dapur-5.png").exists()) {
+            kitchenBg = new Texture("backgrounds/dapur-5.png");
         } else {
             kitchenBg = createSolidTexture(Color.GRAY, 1, 1);
         }
@@ -345,20 +356,20 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
 
         // Load walk animations
         Array<TextureRegion> rightFrames = new Array<>();
-        Array<TextureRegion> leftFrames = new Array<>();
-        for (int i = 1; i <= 8; i++) {
-            String rightPath = "character/Ayu/jalan_kanan_" + i + ".png";
-            String leftPath = "character/Ayu/jalan_kiri_" + i + ".png";
-            if (Gdx.files.internal(rightPath).exists()) {
-                rightFrames.add(new TextureRegion(new Texture(rightPath)));
-            }
-            if (Gdx.files.internal(leftPath).exists()) {
-                leftFrames.add(new TextureRegion(new Texture(leftPath)));
-            }
+        for (int i = 0; i <= 12; i++) {
+            String p = "character/Ayu/ayu-yoga-jalan/frame_" + (i < 10 ? "0" : "") + i + "_delay-0.11s.png";
+            if (Gdx.files.internal(p).exists())
+                rightFrames.add(new TextureRegion(new Texture(p)));
+        }
+        if (rightFrames.size > 0) {
+            walkRightAnim = new Animation<>(0.11f, rightFrames, Animation.PlayMode.LOOP);
         }
 
-        if (rightFrames.size > 0) {
-            walkRightAnim = new Animation<>(0.1f, rightFrames, Animation.PlayMode.LOOP);
+        Array<TextureRegion> leftFrames = new Array<>();
+        for (int i = 1; i <= 8; i++) {
+            String leftPath = "character/Ayu/jalan_kiri_" + i + ".png";
+            if (Gdx.files.internal(leftPath).exists())
+                leftFrames.add(new TextureRegion(new Texture(leftPath)));
         }
         if (leftFrames.size > 0) {
             walkLeftAnim = new Animation<>(0.1f, leftFrames, Animation.PlayMode.LOOP);
@@ -366,6 +377,11 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
 
         if (Gdx.files.internal("SFX/sfx untuk message pop up.mp3").exists()) {
             messageSfx = Gdx.audio.newSound(Gdx.files.internal("SFX/sfx untuk message pop up.mp3"));
+        }
+
+        String bgmPath = "SFX/[Non Copyrighted Music] Scott Buckley - Growing Up [Piano].mp3";
+        if (Gdx.files.internal(bgmPath).exists()) {
+            bgmMusic = Gdx.audio.newMusic(Gdx.files.internal(bgmPath));
         }
     }
 
@@ -477,19 +493,15 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 batch.draw(scene3Bg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
                 // Mobil Merah or rusak
                 if (showMobilRusak && mobilRusak != null) {
-                    batch.draw(mobilRusak, 1400f, 100f, 400f, 300f);
+                    batch.draw(mobilRusak, 1400f, 100f, 500f, 375f);
                 } else if (showMobilMerah && mobilMerah != null) {
-                    float dist = Math.max(1f, mobilMerahX - ayuX);
-                    float scale = MathUtils.clamp(0.6f + 0.9f * (1f - dist / WORLD_WIDTH), 0.6f, 1.5f);
-                    float w = 400f * scale;
-                    float h = 300f * scale;
-                    float x = mobilMerahX - w;
-                    float y = ayuY;
-                    batch.draw(mobilMerah, x, y, w, h);
+                    float x = mobilMerahX - 500f;
+                    float y = ayuY * 0.9f;
+                    batch.draw(mobilMerah, x, y, 500f, 375f);
                 }
                 // Siluet mobil shadow pass
                 if (showSiluetMobil && siluetMobil != null) {
-                    batch.draw(siluetMobil, siluetMobilY * 0.5f, siluetMobilY, 400f, 300f);
+                    batch.draw(siluetMobil, siluetMobilY * 0.5f, siluetMobilY, 500f, 375f);
                 }
                 // Kesakitan character on QTE fail
                 if (showKesakitan && kesakitan != null) {
@@ -847,7 +859,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                     }
                     if (showSiluetMobil) {
                         siluetMobilY -= delta * 800f;
-                        if (siluetMobilY <= -400f) {
+                        if (siluetMobilY <= -500f) {
                             showSiluetMobil = false;
                             showKesakitan = true;
                             showMobilRusak = true;
@@ -964,7 +976,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                             currentState = State.SCENE6_CLASSROOM;
                             isMoving = false;
                             ayuX = 1500f; // Berdiri di posisi presentasi (X: 1000f)
-                            ayuY = 100f;
+                    ayuY = 70f;
                             classroomStep = 0;
                             classroomTimer = 0f;
                             setupClassroomDialog();
@@ -1121,7 +1133,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         String fullText = currentDialogs.get(currentDialogIndex).text;
         if (charIndex < fullText.length()) {
             if (!fullText.trim().isEmpty() && messageSfx != null && currentSfxId == -1) {
-                currentSfxId = messageSfx.loop(0.5f);
+                currentSfxId = messageSfx.loop(0.8f);
             }
             typeTimer += delta;
             if (typeTimer >= typeSpeed) {
@@ -1165,7 +1177,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         DialogInfo dialog = currentDialogs.get(currentDialogIndex);
 
         float drawWidth = 198f;
-        float drawHeight = 334f;
+        float drawHeight = 361f;
 
         float bubbleWidth;
         float bubbleHeight;
@@ -1212,7 +1224,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 if (txt != null && (txt.contains("Iya, bentar lagi") || txt.contains("Iya, Bentar Lagi"))) {
                     bubbleY = 750f;
                 } else {
-                    bubbleY = ayuY + drawHeight + 20f;
+            bubbleY = ayuY + drawHeight * 1.3f + 20f;
                 }
             }
 
@@ -1523,6 +1535,10 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
             temanSprite.dispose();
         if (messageSfx != null)
             messageSfx.dispose();
+        if (bgmMusic != null) {
+            bgmMusic.stop();
+            bgmMusic.dispose();
+        }
         font.dispose();
     }
 }
