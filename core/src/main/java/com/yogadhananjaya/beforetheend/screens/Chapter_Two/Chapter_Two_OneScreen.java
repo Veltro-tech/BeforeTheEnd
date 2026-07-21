@@ -34,9 +34,10 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
     Texture textbox;
     Animation<TextureRegion> walkRightAnim;
     Animation<TextureRegion> walkLeftAnim;
+    Animation<TextureRegion> idleAnim;
     TextureRegion ayuIdleFrame;
     Texture ayuSelesaiPresentasi;
-    
+
     // Backgrounds
     Texture bgKamar;
     Texture bgKamarTidur;
@@ -47,7 +48,8 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
 
     float stateTime;
     float walkTime;
-    
+    float idleTime;
+
     // Ayu's State/Position
     float ayuX = 100f;
     float ayuY = 180f;
@@ -56,16 +58,19 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
 
     // Narrative/Scene control
     private enum SubScene {
+        NIGHTMARE,
         WAKING_UP, // Transisi bangun
         SCENE_7A, // Kamar
         PLAY_DRIVING, // Perjalanan menyetir
         DRIVING_QTE, // Quick Time Event menyetir
         DIALOG_DRIVING, // Dialog pasca QTE menyetir
         SCENE_7C, // Lobby
+        SCENE_7C_TRANSITION, // Fade to black before 7D
         SCENE_7D, // Tangga & Pingsan
         LOOP_TRANSITION // Fade out dan restart ke Chapter_One_TwoScreen (Loop 2)
     }
-    SubScene currentSubScene = SubScene.WAKING_UP;
+
+    SubScene currentSubScene = SubScene.NIGHTMARE;
 
     // Typewriter
     Queue<DialogLine> dialogQueue;
@@ -95,6 +100,29 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
     boolean impactStarted = false;
     float impactTimer = 0f;
     float whiteFlashAlpha = 0f;
+    int scene7AStep = 0;
+
+    private static class NightmareText {
+        String text;
+        float x, y;
+        float scale;
+        Color color;
+
+        NightmareText(String text, float x, float y, float scale, Color color) {
+            this.text = text;
+            this.x = x;
+            this.y = y;
+            this.scale = scale;
+            this.color = color;
+        }
+    }
+
+    private final java.util.List<NightmareText> nightmareTexts = new java.util.ArrayList<>();
+    private final String[] nightmarePhrases = { "Gagal", "Semua hancur", "Tidak ada waktu", "Kamu terlambat", "Sia-sia",
+            "Sudah berakhir" };
+    private float textSpawnTimer = 0f;
+    boolean phoneTriggerQueued = false;
+    boolean lobbyExploring = false;
 
     private float wakeFadeAlpha = 1f;
     private float subsceneTimer = 0f;
@@ -108,8 +136,8 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
     float faintAlpha = 0f;
     float loopAlpha = 0f;
 
-    final float WORLD_WIDTH = 1280f;
-    final float WORLD_HEIGHT = 720f;
+    final float WORLD_WIDTH = 1920f;
+    final float WORLD_HEIGHT = 1080f;
 
     public Chapter_Two_OneScreen(final BeforeTheEndGame game) {
         this.game = game;
@@ -125,7 +153,7 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
         bgKamarTidur = new Texture("backgrounds/Chapter_2/kamar-ayu-tidur.png");
         bgDriving = new Texture("backgrounds/scene-4.png"); // Using scene-4 road as driving bg
         bgLobby = new Texture("backgrounds/LIFT_PENUH.png");
-        bgTangga = new Texture("backgrounds/TAMAN2.png"); // Fallback for stairs
+        bgTangga = new Texture("backgrounds/otw-kelas.png");
         activeBg = bgKamarTidur;
 
         Pixmap pmBlack = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
@@ -185,15 +213,15 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
             ayuIdleFrame = new TextureRegion(ayuIdleSheet);
         }
 
-        // Walk right animation
+        // Walk right animation (yoga-jalan)
         Array<TextureRegion> rightFrames = new Array<>();
-        for (int i = 1; i <= 8; i++) {
-            if (Gdx.files.internal("character/Ayu/jalan_kanan_" + i + ".png").exists()) {
-                rightFrames.add(new TextureRegion(new Texture("character/Ayu/jalan_kanan_" + i + ".png")));
-            }
+        for (int i = 0; i <= 12; i++) {
+            String p = "character/Ayu/ayu-yoga-jalan/frame_" + (i < 10 ? "0" : "") + i + "_delay-0.11s.png";
+            if (Gdx.files.internal(p).exists())
+                rightFrames.add(new TextureRegion(new Texture(p)));
         }
         if (rightFrames.size > 0) {
-            walkRightAnim = new Animation<>(0.1f, rightFrames, Animation.PlayMode.LOOP);
+            walkRightAnim = new Animation<>(0.11f, rightFrames, Animation.PlayMode.LOOP);
         }
 
         // Walk left animation
@@ -207,6 +235,18 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
             walkLeftAnim = new Animation<>(0.1f, leftFrames, Animation.PlayMode.LOOP);
         }
 
+        // Idle yoga animation
+        Array<TextureRegion> idleFrames = new Array<>();
+        for (int i = 1; i <= 229; i++) {
+            String path = "character/Ayu/ayu-yoga/Ayu_yoga_" + i + ".png";
+            if (Gdx.files.internal(path).exists()) {
+                idleFrames.add(new TextureRegion(new Texture(path)));
+            }
+        }
+        if (idleFrames.size > 0) {
+            idleAnim = new Animation<>(0.08f, idleFrames, Animation.PlayMode.LOOP);
+        }
+
         if (Gdx.files.internal("character/Ayu/selesail_presentasi_kiri.png").exists()) {
             ayuSelesaiPresentasi = new Texture("character/Ayu/selesail_presentasi_kiri.png");
         } else if (Gdx.files.internal("character/Ayu/selesai_presentasi_kiri.png").exists()) {
@@ -216,32 +256,10 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
 
     private void setupDialogQueue() {
         dialogQueue = new LinkedList<>();
-        // Dialog 7-A (Kamar Ayu)
+        // Dialog 7-A (Kamar Ayu) — phone & driving triggered by player movement
         dialogQueue.add(new DialogLine("Narator", "Ayu terbangun di kamarnya dalam keadaan masih sakit kepala..."));
         dialogQueue.add(new DialogLine("Ayu", "Aduh, kepalaku... Kenapa sakit sekali? Apa yang terjadi kemarin ya?"));
         dialogQueue.add(new DialogLine("Sistem", "WAKE_UP"));
-        dialogQueue.add(new DialogLine("Sistem", "RINGING_PHONE"));
-        dialogQueue.add(new DialogLine("Alya", "Yu, dimana lu? Kita hari ini mau ada presentasi projek loh!"));
-        dialogQueue.add(new DialogLine("Ayu", "Hah?! Hari ini?! Oh tidak, aku harus segera bergegas ke kampus!"));
-        
-        // Dialog 7-B (Perjalanan)
-        dialogQueue.add(new DialogLine("Sistem", "START_DRIVING"));
-        dialogQueue.add(new DialogLine("Ayu", "Kenapa jalanan ini terasa sangat familiar ya? Deja vu...?"));
-        dialogQueue.add(new DialogLine("Sistem", "DRIVING_GAMEPLAY"));
-        
-        // Dialog 7-C (Lobby Kampus)
-        dialogQueue.add(new DialogLine("Sistem", "START_LOBBY"));
-        dialogQueue.add(new DialogLine("Narator", "Ayu sampai di kampus dan segera bergegas ke lobby..."));
-        dialogQueue.add(new DialogLine("Ayu", "Astaga, antrian lift tidak masuk akal panjangnya! Aku tidak punya waktu!"));
-        dialogQueue.add(new DialogLine("Ayu", "Lebih baik aku naik tangga saja ke lantai 3!"));
-
-        // Dialog 7-D (Tangga)
-        dialogQueue.add(new DialogLine("Sistem", "START_STAIRS"));
-        dialogQueue.add(new DialogLine("Narator", "Ayu berlari menaiki tangga dengan cepat..."));
-        dialogQueue.add(new DialogLine("Ayu", "Ayo cepat... tinggal sedikit lagi..."));
-        dialogQueue.add(new DialogLine("Sistem", "TRIGGER_HEADACHE"));
-        dialogQueue.add(new DialogLine("Narator", "Tiba-tiba dengungan hebat menyerang kepala Ayu..."));
-        dialogQueue.add(new DialogLine("Sistem", "TRIGGER_FALL"));
 
         dequeueNextDialog();
     }
@@ -252,14 +270,25 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
 
             if (currentDialog.character.equals("Sistem")) {
                 handleSystemTrigger(currentDialog.text);
+                // After WAKE_UP, let player explore
+                if (currentDialog.text.equals("WAKE_UP")) {
+                    scene7AStep = 1;
+                    phoneTriggerQueued = false;
+                }
+                if (currentDialog.text.equals("LOBBY_EXPLORE")) {
+                    lobbyExploring = true;
+                    currentDialog = null;
+                    return;
+                }
                 dequeueNextDialog();
                 return;
             }
 
-            // When "Aduh, kepalaku..." appears: switch bg to kamar-ayu-6 + show Ayu
+            // When "Aduh, kepalaku..." appears: switch bg to kamar-ayu-6 + show Ayu di
+            // kasur
             if (currentSubScene == SubScene.SCENE_7A && currentDialog.text.contains("Aduh, kepalaku")) {
                 activeBg = bgKamar;
-                ayuX = 1150f;
+                ayuX = 483f;
             }
 
             targetText = currentDialog.text;
@@ -268,6 +297,10 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
             textTimer = 0f;
         } else {
             currentDialog = null;
+            // Phone dialog fully consumed — now explore door
+            if (scene7AStep == 2) {
+                scene7AStep = 3;
+            }
         }
     }
 
@@ -277,25 +310,31 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
         } else if (command.equals("RINGING_PHONE")) {
             // Visual/audio trigger can go here
         } else if (command.equals("START_DRIVING")) {
-            currentSubScene = SubScene.PLAY_DRIVING;
+            currentSubScene = SubScene.DIALOG_DRIVING;
             activeBg = bgDriving;
             ayuX = 100f;
             ayuY = 180f;
             isWalking = false;
+            LinkedList<DialogLine> list = (LinkedList<DialogLine>) dialogQueue;
+            list.addFirst(new DialogLine("Sistem", "START_GAMEPLAY"));
+            list.addFirst(new DialogLine("Ayu", "Kenapa jalanan ini terasa sangat familiar ya? Deja vu...?"));
+        } else if (command.equals("START_GAMEPLAY")) {
+            currentSubScene = SubScene.PLAY_DRIVING;
             showMobilMerah = true;
             mobilMerahX = WORLD_WIDTH + 200f;
-        } else if (command.equals("DRIVING_GAMEPLAY")) {
-            currentSubScene = SubScene.PLAY_DRIVING;
         } else if (command.equals("START_LOBBY")) {
             currentSubScene = SubScene.SCENE_7C;
             activeBg = bgLobby;
             ayuX = 100f;
-            ayuY = 150f;
+            ayuY = 180f;
+            scene7AStep = 0;
+        } else if (command.equals("LOBBY_EXPLORE")) {
+            lobbyExploring = true;
         } else if (command.equals("START_STAIRS")) {
             currentSubScene = SubScene.SCENE_7D;
             activeBg = bgTangga;
             ayuX = 100f;
-            ayuY = 150f;
+            ayuY = 180f;
         } else if (command.equals("TRIGGER_HEADACHE")) {
             isBuzzing = true;
             headBuzzTimer = 0f;
@@ -303,6 +342,19 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
             // Start fade out and loop
             currentSubScene = SubScene.LOOP_TRANSITION;
         }
+    }
+
+    private void queueAfterDrivingDialogs() {
+        dialogQueue.add(new DialogLine("Sistem", "START_LOBBY"));
+        dialogQueue.add(new DialogLine("Narator", "Ayu sampai di kampus dan segera bergegas ke lobby..."));
+        dialogQueue.add(new DialogLine("Ayu", "Astaga, antrian lift tidak masuk akal panjangnya! Aku tidak punya waktu!"));
+        dialogQueue.add(new DialogLine("Ayu", "Lebih baik aku naik tangga saja ke lantai 3!"));
+        dialogQueue.add(new DialogLine("Sistem", "LOBBY_EXPLORE"));
+        dialogQueue.add(new DialogLine("Narator", "Ayu berjalan menyusuri koridor menuju ruang sidang..."));
+        dialogQueue.add(new DialogLine("Ayu", "Sedikit lagi... aku harus sampai tepat waktu..."));
+        dialogQueue.add(new DialogLine("Sistem", "TRIGGER_HEADACHE"));
+        dialogQueue.add(new DialogLine("Narator", "Tiba-tiba dengungan hebat menyerang kepala Ayu..."));
+        dialogQueue.add(new DialogLine("Sistem", "TRIGGER_FALL"));
     }
 
     private void setupDrivingDialog() {
@@ -313,9 +365,11 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
             list.addFirst(new DialogLine("Ayu", "Fuuuh... Hampir saja! Untung refleksku cepat!"));
         } else {
             list.addFirst(new DialogLine("Ayu", "Waktu sudah mepet, aku tidak punya pilihan selain terus tancap gas!"));
-            list.addFirst(new DialogLine("Ayu", "Kepalaku makin sakit karena kaget! Deja vu ini membuatku tidak fokus!"));
+            list.addFirst(
+                    new DialogLine("Ayu", "Kepalaku makin sakit karena kaget! Deja vu ini membuatku tidak fokus!"));
             list.addFirst(new DialogLine("Ayu", "AAAKH!! Rem mendadak!!"));
         }
+        queueAfterDrivingDialogs();
     }
 
     private void updateTypewriter(float delta) {
@@ -330,7 +384,9 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
     }
 
     private void handleInput(float delta) {
-        if (Gdx.input.justTouched() && currentSubScene != SubScene.PLAY_DRIVING && currentSubScene != SubScene.DRIVING_QTE) {
+        if (Gdx.input.justTouched() && currentSubScene != SubScene.PLAY_DRIVING
+                && currentSubScene != SubScene.DRIVING_QTE
+                && !(currentSubScene == SubScene.SCENE_7C && lobbyExploring)) {
             if (charIndex < targetText.length()) {
                 displayedText = targetText;
                 charIndex = targetText.length();
@@ -339,12 +395,105 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
             }
         }
 
+        // Scene 7-A interactive exploration (press E to interact)
+        if (currentSubScene == SubScene.SCENE_7A && scene7AStep != 0 && scene7AStep != 2) {
+            isWalking = false;
+            if (Gdx.input.isKeyPressed(Input.Keys.LEFT) || Gdx.input.isKeyPressed(Input.Keys.A)) {
+                ayuX -= 250f * delta;
+                isWalking = true;
+                walkDirectionRight = false;
+            }
+            if (Gdx.input.isKeyPressed(Input.Keys.RIGHT) || Gdx.input.isKeyPressed(Input.Keys.D)) {
+                ayuX += 250f * delta;
+                isWalking = true;
+                walkDirectionRight = true;
+            }
+            ayuX = MathUtils.clamp(ayuX, 50f, WORLD_WIDTH - 50f);
+
+            // Press E near phone → answer call
+            if (ayuX >= 400f && scene7AStep == 1 && Gdx.input.isKeyJustPressed(Input.Keys.E) && !phoneTriggerQueued) {
+                phoneTriggerQueued = true;
+                scene7AStep = 2;
+                LinkedList<DialogLine> list = (LinkedList<DialogLine>) dialogQueue;
+                list.addFirst(new DialogLine("Ayu", "Hah?! Hari ini?! Oh tidak, aku harus segera bergegas ke kampus!"));
+                list.addFirst(new DialogLine("Alya", "Yu, dimana lu? Kita hari ini mau ada presentasi projek loh!"));
+                list.addFirst(new DialogLine("Sistem", "RINGING_PHONE"));
+                dequeueNextDialog();
+                return;
+            }
+            // Press E at door → START_DRIVING
+            if (ayuX >= WORLD_WIDTH - 300f && scene7AStep == 3 && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+                scene7AStep = 4;
+                LinkedList<DialogLine> list2 = (LinkedList<DialogLine>) dialogQueue;
+                list2.addFirst(new DialogLine("Sistem", "START_DRIVING"));
+                dequeueNextDialog();
+                return;
+            }
+        }
+
+        // Debug: F7 restart ke scene 7-A
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F7)) {
+            currentSubScene = SubScene.NIGHTMARE;
+            subsceneTimer = 0f;
+            nightmareTexts.clear();
+            activeBg = bgKamarTidur;
+            ayuX = 100f;
+            ayuY = 180f;
+            showMobilMerah = false;
+            showKesakitan = false;
+            showSiluetMobil = false;
+            showMobilRusak = false;
+            impactStarted = false;
+            scene7AStep = 0;
+            phoneTriggerQueued = false;
+            lobbyExploring = false;
+            idleTime = 0f;
+            dialogQueue.clear();
+            currentDialog = null;
+            setupDialogQueue();
+            return;
+        }
+
+        // Debug: F10 ke Loop 3
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F10)) {
+            game.setScreen(new Chapter_Three_Loop3Screen(game));
+            return;
+        }
+
+        // Debug: F9 ke Loop 2
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F9)) {
+            game.setScreen(new Chapter_Two_Loop2Screen(game));
+            return;
+        }
+
+        // Debug: F8 ke Scene 7-D
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F8)) {
+            currentSubScene = SubScene.SCENE_7D;
+            activeBg = bgTangga;
+            ayuX = 100f;
+            ayuY = 180f;
+            isWalking = false;
+            isBuzzing = false;
+            glitchIntensity = 0f;
+            lobbyExploring = false;
+            dialogQueue.clear();
+            currentDialog = null;
+            dialogQueue.add(new DialogLine("Narator", "Ayu berjalan menyusuri koridor menuju ruang sidang..."));
+            dialogQueue.add(new DialogLine("Ayu", "Sedikit lagi... aku harus sampai tepat waktu..."));
+            dialogQueue.add(new DialogLine("Sistem", "TRIGGER_HEADACHE"));
+            dialogQueue.add(new DialogLine("Narator", "Tiba-tiba dengungan hebat menyerang kepala Ayu..."));
+            dialogQueue.add(new DialogLine("Sistem", "TRIGGER_FALL"));
+            dequeueNextDialog();
+            return;
+        }
+
         // Subscene gameplay movement
         if (currentSubScene == SubScene.PLAY_DRIVING) {
             isWalking = true;
             walkDirectionRight = true;
             ayuX += delta * 200f;
-            if (ayuX > WORLD_WIDTH - 300f) ayuX = WORLD_WIDTH - 300f;
+            if (ayuX > WORLD_WIDTH - 300f)
+                ayuX = WORLD_WIDTH - 300f;
             if (showMobilMerah) {
                 mobilMerahX -= delta * 250f;
                 if (mobilMerahX - 200f <= ayuX) {
@@ -355,34 +504,50 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
                 }
             }
         } else if (currentSubScene == SubScene.SCENE_7C) {
-            // Move Ayu towards right to trigger next scene
-            isWalking = false;
-            if (Gdx.input.isKeyPressed(Input.Keys.RIGHT) || Gdx.input.isKeyPressed(Input.Keys.D)) {
-                ayuX += 250f * delta;
-                isWalking = true;
-                walkDirectionRight = true;
-            }
-            if (Gdx.input.isKeyPressed(Input.Keys.LEFT) || Gdx.input.isKeyPressed(Input.Keys.A)) {
-                ayuX -= 250f * delta;
-                isWalking = true;
-                walkDirectionRight = false;
-            }
-
-            if (ayuX > 1100f) {
-                ayuX = 100f;
-                dequeueNextDialog();
-            }
-        } else if (currentSubScene == SubScene.SCENE_7D) {
-            // Move Ayu to climbing stairs
-            isWalking = false;
-            if (!isBuzzing) {
+            if (!lobbyExploring) {
+                // Dialog phase: player still moves freely
+                isWalking = false;
                 if (Gdx.input.isKeyPressed(Input.Keys.RIGHT) || Gdx.input.isKeyPressed(Input.Keys.D)) {
-                    ayuX += 200f * delta;
-                    ayuY += 100f * delta; // Climbing effect
+                    ayuX += 250f * delta;
                     isWalking = true;
                     walkDirectionRight = true;
                 }
-                if (ayuX > 800f) {
+                if (Gdx.input.isKeyPressed(Input.Keys.LEFT) || Gdx.input.isKeyPressed(Input.Keys.A)) {
+                    ayuX -= 250f * delta;
+                    isWalking = true;
+                    walkDirectionRight = false;
+                }
+                if (ayuX > 1100f) {
+                    ayuX = 100f;
+                    dequeueNextDialog();
+                }
+            } else {
+                // Exploring: walk to stairs, press E
+                isWalking = false;
+                if (Gdx.input.isKeyPressed(Input.Keys.RIGHT) || Gdx.input.isKeyPressed(Input.Keys.D)) {
+                    ayuX += 250f * delta;
+                    isWalking = true;
+                    walkDirectionRight = true;
+                }
+                if (Gdx.input.isKeyPressed(Input.Keys.LEFT) || Gdx.input.isKeyPressed(Input.Keys.A)) {
+                    ayuX -= 250f * delta;
+                    isWalking = true;
+                    walkDirectionRight = false;
+                }
+                ayuX = MathUtils.clamp(ayuX, 50f, WORLD_WIDTH - 50f);
+                if (ayuX >= WORLD_WIDTH * 0.7f && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+                    lobbyExploring = false;
+                    currentSubScene = SubScene.SCENE_7C_TRANSITION;
+                    subsceneTimer = 0f;
+                }
+            }
+        } else if (currentSubScene == SubScene.SCENE_7D) {
+            isWalking = false;
+            if (!isBuzzing) {
+                ayuX += 200f * delta;
+                isWalking = true;
+                walkDirectionRight = true;
+                if (ayuX >= WORLD_WIDTH * 0.25f) {
                     dequeueNextDialog();
                 }
             }
@@ -392,18 +557,44 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
     @Override
     public void render(float delta) {
         stateTime += delta;
-        if (isWalking) {
-            walkTime += delta;
-        }
 
         // Subscene Update Logic
-        if (currentSubScene == SubScene.WAKING_UP) {
+        if (currentSubScene == SubScene.NIGHTMARE) {
+            subsceneTimer += delta;
+            textSpawnTimer += delta;
+            if (textSpawnTimer >= 0.3f) {
+                textSpawnTimer = 0f;
+                String phrase = nightmarePhrases[MathUtils.random(nightmarePhrases.length - 1)];
+                float x = MathUtils.random(100f, WORLD_WIDTH - 300f);
+                float y = MathUtils.random(100f, WORLD_HEIGHT - 100f);
+                float scale = MathUtils.random(1.5f, 4f);
+                Color color = new Color(MathUtils.random(0.5f, 1f), 0f, 0f, MathUtils.random(0.5f, 1f));
+                nightmareTexts.add(new NightmareText(phrase, x, y, scale, color));
+            }
+            if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+                currentSubScene = SubScene.WAKING_UP;
+                subsceneTimer = 0f;
+                nightmareTexts.clear();
+            } else if (subsceneTimer >= 10.0f) {
+                currentSubScene = SubScene.WAKING_UP;
+                subsceneTimer = 0f;
+                nightmareTexts.clear();
+            }
+        } else if (currentSubScene == SubScene.WAKING_UP) {
             subsceneTimer += delta;
             wakeFadeAlpha = 1f - (subsceneTimer / 2.0f);
             if (wakeFadeAlpha <= 0f) {
                 wakeFadeAlpha = 0f;
                 currentSubScene = SubScene.SCENE_7A;
                 subsceneTimer = 0f;
+                nightmareTexts.clear();
+            }
+        } else if (currentSubScene == SubScene.SCENE_7C_TRANSITION) {
+            subsceneTimer += delta;
+            if (subsceneTimer >= 2.0f) {
+                LinkedList<DialogLine> list = (LinkedList<DialogLine>) dialogQueue;
+                list.addFirst(new DialogLine("Sistem", "START_STAIRS"));
+                dequeueNextDialog();
             }
         } else {
             handleInput(delta);
@@ -432,73 +623,72 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
 
         camera.zoom = 1.0f;
         camera.position.set(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 0);
+        if (currentSubScene == SubScene.NIGHTMARE) {
+            float shakeIntensity = 5f;
+            camera.position.add(MathUtils.random(-shakeIntensity, shakeIntensity),
+                    MathUtils.random(-shakeIntensity, shakeIntensity), 0);
+        }
         if (drivingShakeTimer > 0f) {
             drivingShakeTimer -= delta;
             float shakeIntensity = qteSuccess ? 8f : 20f;
-            camera.position.add(MathUtils.random(-shakeIntensity, shakeIntensity), MathUtils.random(-shakeIntensity, shakeIntensity), 0);
+            camera.position.add(MathUtils.random(-shakeIntensity, shakeIntensity),
+                    MathUtils.random(-shakeIntensity, shakeIntensity), 0);
         }
         camera.update();
         batch.setProjectionMatrix(camera.combined);
 
         batch.begin();
 
-        if (currentSubScene == SubScene.WAKING_UP) {
+        if (currentSubScene == SubScene.NIGHTMARE) {
+            batch.draw(blackTexture, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+            for (NightmareText nt : nightmareTexts) {
+                font.getData().setScale(nt.scale);
+                font.setColor(nt.color);
+                font.draw(batch, nt.text, nt.x, nt.y);
+            }
+            font.getData().setScale(2f);
+            font.setColor(Color.WHITE);
+        } else if (currentSubScene == SubScene.WAKING_UP) {
             // Render Waking Up Fade out of black
             batch.draw(bgKamarTidur, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
             batch.setColor(1, 1, 1, wakeFadeAlpha);
             batch.draw(blackTexture, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
             batch.setColor(Color.WHITE);
+        } else if (currentSubScene == SubScene.SCENE_7C_TRANSITION) {
+            batch.draw(activeBg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+            batch.draw(blackTexture, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
         } else {
             // Render Background with optional headache offset
             float bgOffset = isBuzzing ? MathUtils.random(-glitchIntensity, glitchIntensity) : 0f;
             batch.draw(activeBg, bgOffset, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
             // Render Player / Ayu
-            if (currentSubScene == SubScene.SCENE_7A) {
-                if (activeBg == bgKamar) {
-                    float drawHeight = 334f;
-                    float drawWidth = 198f;
-                    batch.draw(ayuIdleFrame, ayuX, ayuY, drawWidth, drawHeight);
-                }
-            } else if (currentSubScene == SubScene.PLAY_DRIVING || currentSubScene == SubScene.SCENE_7C || currentSubScene == SubScene.SCENE_7D) {
+            if (currentSubScene == SubScene.SCENE_7A && activeBg == bgKamar) {
+                drawCharacter(delta);
+            } else if (currentSubScene == SubScene.PLAY_DRIVING || currentSubScene == SubScene.SCENE_7C
+                    || currentSubScene == SubScene.SCENE_7D) {
                 // Mobil Merah with scale approach
                 if (showMobilMerah && mobilMerah != null) {
-                    float dist = Math.max(1f, mobilMerahX - ayuX);
-                    float scale = MathUtils.clamp(0.6f + 0.9f * (1f - dist / WORLD_WIDTH), 0.6f, 1.5f);
-                    float w = 400f * scale;
-                    float h = 300f * scale;
-                    float x = mobilMerahX - w;
-                    float y = ayuY;
-                    batch.draw(mobilMerah, x, y, w, h);
+                    float x = mobilMerahX - 500f;
+                    float y = ayuY * 0.72f;
+                    batch.draw(mobilMerah, x, y, 500f, 375f);
                 }
                 if (showMobilRusak && mobilRusak != null) {
-                    batch.draw(mobilRusak, 1400f, 100f, 400f, 300f);
+                    batch.draw(mobilRusak, 1400f, 100f, 500f, 375f);
                 }
                 if (showSiluetMobil && siluetMobil != null) {
-                    batch.draw(siluetMobil, siluetMobilY * 0.5f, siluetMobilY, 400f, 300f);
+                    batch.draw(siluetMobil, siluetMobilY * 0.5f, siluetMobilY, 500f, 375f);
                 }
                 if (showKesakitan && kesakitan != null) {
                     batch.draw(kesakitan, ayuX, ayuY, 198f, 334f);
                 } else {
-                    TextureRegion currentFrame = ayuIdleFrame;
-                    if (isWalking) {
-                        if (walkDirectionRight && walkRightAnim != null) {
-                            currentFrame = walkRightAnim.getKeyFrame(walkTime);
-                        } else if (!walkDirectionRight && walkLeftAnim != null) {
-                            currentFrame = walkLeftAnim.getKeyFrame(walkTime);
-                        }
-                    }
-                    batch.draw(currentFrame, ayuX, ayuY);
+                    drawCharacter(delta);
                 }
             } else if (currentSubScene == SubScene.DRIVING_QTE) {
                 if (showMobilMerah && mobilMerah != null) {
-                    float dist = Math.max(1f, mobilMerahX - ayuX);
-                    float scale = MathUtils.clamp(0.6f + 0.9f * (1f - dist / WORLD_WIDTH), 0.6f, 1.5f);
-                    float w = 400f * scale;
-                    float h = 300f * scale;
-                    float x = mobilMerahX - w;
-                    float y = ayuY;
-                    batch.draw(mobilMerah, x, y, w, h);
+                    float x = mobilMerahX - 500f;
+                    float y = ayuY * 0.72f;
+                    batch.draw(mobilMerah, x, y, 500f, 375f);
                 }
                 if (whiteFlashAlpha > 0f) {
                     batch.setColor(1f, 1f, 1f, whiteFlashAlpha);
@@ -509,89 +699,157 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
             }
 
             // Render Textbox & Dialogs (Ch1 pop-up style)
-            if (currentDialog != null && currentSubScene != SubScene.PLAY_DRIVING && currentSubScene != SubScene.DRIVING_QTE) {
-            float bubbleWidth = 650f;
-            float bubbleHeight = 180f;
-            float bubbleX = 0f;
-            float bubbleY = 0f;
+            if (currentDialog != null && currentSubScene != SubScene.PLAY_DRIVING
+                    && currentSubScene != SubScene.DRIVING_QTE) {
+                float bubbleWidth = 650f;
+                float bubbleHeight = 180f;
+                float bubbleX = 0f;
+                float bubbleY = 0f;
 
-            if ("Narator".equalsIgnoreCase(currentDialog.character)) {
-                bubbleWidth = 900f;
-                bubbleHeight = 150f;
-                bubbleX = WORLD_WIDTH / 2f - (bubbleWidth / 2f);
-                bubbleY = WORLD_HEIGHT - bubbleHeight - 50f;
-            } else if ("Alya".equalsIgnoreCase(currentDialog.character)) {
-                bubbleX = WORLD_WIDTH - bubbleWidth - 50f;
-                bubbleY = ayuY + 150f;
-            } else {
-                bubbleX = ayuX + 32f - (bubbleWidth / 2f);
-                bubbleY = ayuY + 150f;
+                if ("Narator".equalsIgnoreCase(currentDialog.character)) {
+                    bubbleWidth = 900f;
+                    bubbleHeight = 150f;
+                    bubbleX = WORLD_WIDTH / 2f - (bubbleWidth / 2f);
+                    bubbleY = WORLD_HEIGHT - bubbleHeight - 50f;
+                } else if ("Alya".equalsIgnoreCase(currentDialog.character)) {
+                    bubbleX = WORLD_WIDTH - bubbleWidth - 50f;
+                    bubbleY = ayuY + 195f;
+                } else {
+                    bubbleX = ayuX + 32f - (bubbleWidth / 2f);
+                    bubbleY = ayuY + 418f;
+                }
+
+                if (bubbleX < 20f)
+                    bubbleX = 20f;
+                if (bubbleX + bubbleWidth > WORLD_WIDTH - 20f)
+                    bubbleX = WORLD_WIDTH - 20f - bubbleWidth;
+
+                // Background
+                batch.draw(blackTexture, bubbleX, bubbleY, bubbleWidth, bubbleHeight);
+
+                // Gold Border
+                batch.setColor(Color.GOLD);
+                float borderThickness = 3f;
+                batch.draw(whiteTexture, bubbleX, bubbleY + bubbleHeight - borderThickness, bubbleWidth,
+                        borderThickness);
+                batch.draw(whiteTexture, bubbleX, bubbleY, bubbleWidth, borderThickness);
+                batch.draw(whiteTexture, bubbleX, bubbleY, borderThickness, bubbleHeight);
+                batch.draw(whiteTexture, bubbleX + bubbleWidth - borderThickness, bubbleY, borderThickness,
+                        bubbleHeight);
+                batch.setColor(Color.WHITE);
+
+                // Speaker Name
+                if (!"Narator".equalsIgnoreCase(currentDialog.character)) {
+                    font.getData().setScale(1.4f);
+                    font.setColor(Color.GOLD);
+                    font.draw(batch, currentDialog.character, bubbleX + 25f, bubbleY + bubbleHeight - 20f);
+                }
+
+                // Dialog Text
+                font.setColor(Color.WHITE);
+                float textY = "Narator".equalsIgnoreCase(currentDialog.character) ? (bubbleY + bubbleHeight - 35f)
+                        : (bubbleY + bubbleHeight - 60f);
+                font.draw(batch, displayedText, bubbleX + 25f, textY, bubbleWidth - 50f,
+                        com.badlogic.gdx.utils.Align.left, true);
+
+                // Indicator arrow
+                if (charIndex >= targetText.length()) {
+                    if ((int) (stateTime * 2) % 2 == 0) {
+                        batch.setColor(Color.GOLD);
+                        float arrowSize = 12f;
+                        float arrowX = bubbleX + bubbleWidth - 30f;
+                        float arrowY = bubbleY + 20f;
+                        batch.draw(whiteTexture, arrowX - arrowSize / 2f, arrowY, arrowSize, borderThickness);
+                        batch.draw(whiteTexture, arrowX - arrowSize / 4f, arrowY - borderThickness, arrowSize / 2f,
+                                borderThickness);
+                        batch.draw(whiteTexture, arrowX, arrowY - borderThickness * 2f, borderThickness,
+                                borderThickness);
+                        batch.setColor(Color.WHITE);
+                    }
+                }
+                font.getData().setScale(2f);
             }
 
-            if (bubbleX < 20f) bubbleX = 20f;
-            if (bubbleX + bubbleWidth > WORLD_WIDTH - 20f) bubbleX = WORLD_WIDTH - 20f - bubbleWidth;
-
-            // Background
-            batch.draw(blackTexture, bubbleX, bubbleY, bubbleWidth, bubbleHeight);
-
-            // Gold Border
-            batch.setColor(Color.GOLD);
-            float borderThickness = 3f;
-            batch.draw(whiteTexture, bubbleX, bubbleY + bubbleHeight - borderThickness, bubbleWidth, borderThickness);
-            batch.draw(whiteTexture, bubbleX, bubbleY, bubbleWidth, borderThickness);
-            batch.draw(whiteTexture, bubbleX, bubbleY, borderThickness, bubbleHeight);
-            batch.draw(whiteTexture, bubbleX + bubbleWidth - borderThickness, bubbleY, borderThickness, bubbleHeight);
-            batch.setColor(Color.WHITE);
-
-            // Speaker Name
-            if (!"Narator".equalsIgnoreCase(currentDialog.character)) {
-                font.getData().setScale(1.4f);
-                font.setColor(Color.GOLD);
-                font.draw(batch, currentDialog.character, bubbleX + 25f, bubbleY + bubbleHeight - 20f);
-            }
-
-            // Dialog Text
-            font.setColor(Color.WHITE);
-            float textY = "Narator".equalsIgnoreCase(currentDialog.character) ? (bubbleY + bubbleHeight - 35f) : (bubbleY + bubbleHeight - 60f);
-            font.draw(batch, displayedText, bubbleX + 25f, textY, bubbleWidth - 50f, com.badlogic.gdx.utils.Align.left, true);
-
-            // Indicator arrow
-            if (charIndex >= targetText.length()) {
-                if ((int)(stateTime * 2) % 2 == 0) {
+            // Scene 7-A interaction hints (above Ayu, Ch1 style)
+            if (currentSubScene == SubScene.SCENE_7A && scene7AStep != 0 && scene7AStep != 2) {
+                String hint = null;
+                if (scene7AStep == 1 && ayuX >= 400f)
+                    hint = "Tekan E untuk angkat telepon";
+                else if (scene7AStep == 1)
+                    hint = "Coba ke kanan...";
+                else if (scene7AStep == 3 && ayuX >= WORLD_WIDTH - 300f)
+                    hint = "Tekan E untuk keluar";
+                else if (scene7AStep == 3)
+                    hint = "Pergi ke kanan menuju pintu...";
+                if (hint != null) {
+                    float hintW = 400f;
+                    float hintH = 55f;
+                    float hintX = ayuX + 99f - hintW / 2f;
+                    float hintY = ayuY + 401f + 20f;
+                    if (hintX < 10f) hintX = 10f;
+                    if (hintX + hintW > WORLD_WIDTH - 10f) hintX = WORLD_WIDTH - 10f - hintW;
+                    batch.draw(blackTexture, hintX, hintY, hintW, hintH);
                     batch.setColor(Color.GOLD);
-                    float arrowSize = 12f;
-                    float arrowX = bubbleX + bubbleWidth - 30f;
-                    float arrowY = bubbleY + 20f;
-                    batch.draw(whiteTexture, arrowX - arrowSize / 2f, arrowY, arrowSize, borderThickness);
-                    batch.draw(whiteTexture, arrowX - arrowSize / 4f, arrowY - borderThickness, arrowSize / 2f, borderThickness);
-                    batch.draw(whiteTexture, arrowX, arrowY - borderThickness * 2f, borderThickness, borderThickness);
+                    batch.draw(whiteTexture, hintX, hintY + hintH - 3f, hintW, 3f);
+                    batch.draw(whiteTexture, hintX, hintY, hintW, 3f);
+                    batch.draw(whiteTexture, hintX, hintY, 3f, hintH);
+                    batch.draw(whiteTexture, hintX + hintW - 3f, hintY, 3f, hintH);
                     batch.setColor(Color.WHITE);
+                    font.getData().setScale(1.2f);
+                    font.setColor(Color.GOLD);
+                    glyphLayout.setText(font, hint);
+                    font.draw(batch, hint, hintX + (hintW - glyphLayout.width) / 2f, hintY + hintH - 15f);
+                    font.getData().setScale(2f);
+                    font.setColor(Color.WHITE);
                 }
             }
-            font.getData().setScale(2f);
-        }
 
-        // Fainting overlay (Fade to black)
-        if (currentSubScene == SubScene.LOOP_TRANSITION) {
-            faintAlpha += delta * 0.5f;
-            if (faintAlpha > 1.0f) faintAlpha = 1.0f;
-            batch.setColor(0, 0, 0, faintAlpha);
-            // Draws full black overlay
-            // Just reusing textbox texture but colored black
-            batch.draw(textbox, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-            batch.setColor(Color.WHITE);
+            // Lobby explore hint
+            if (currentSubScene == SubScene.SCENE_7C && lobbyExploring) {
+                String hint = ayuX >= WORLD_WIDTH * 0.7f ? "Tekan E untuk Naik Tangga" : "Pergi ke kanan menuju tangga...";
+                float hintW = 400f;
+                float hintH = 55f;
+                float hintX = ayuX + 99f - hintW / 2f;
+                float hintY = ayuY + 361f + 20f;
+                if (hintX < 10f) hintX = 10f;
+                if (hintX + hintW > WORLD_WIDTH - 10f) hintX = WORLD_WIDTH - 10f - hintW;
+                batch.draw(blackTexture, hintX, hintY, hintW, hintH);
+                batch.setColor(Color.GOLD);
+                batch.draw(whiteTexture, hintX, hintY + hintH - 3f, hintW, 3f);
+                batch.draw(whiteTexture, hintX, hintY, hintW, 3f);
+                batch.draw(whiteTexture, hintX, hintY, 3f, hintH);
+                batch.draw(whiteTexture, hintX + hintW - 3f, hintY, 3f, hintH);
+                batch.setColor(Color.WHITE);
+                font.getData().setScale(1.2f);
+                font.setColor(Color.GOLD);
+                glyphLayout.setText(font, hint);
+                font.draw(batch, hint, hintX + (hintW - glyphLayout.width) / 2f, hintY + hintH - 15f);
+                font.getData().setScale(2f);
+                font.setColor(Color.WHITE);
+            }
 
-            if (faintAlpha >= 1.0f) {
-                font.setColor(Color.RED);
-                font.draw(batch, "Loop 1...", WORLD_WIDTH / 2 - 100, WORLD_HEIGHT / 2);
-                
-                loopAlpha += delta;
-                if (loopAlpha > 3.0f) {
-                    // Transition to Chapter 2 (Loop 2) Screen
-                    game.setScreen(new Chapter_One_TwoScreen(game));
+            // Fainting overlay (Fade to black)
+            if (currentSubScene == SubScene.LOOP_TRANSITION) {
+                faintAlpha += delta * 0.5f;
+                if (faintAlpha > 1.0f)
+                    faintAlpha = 1.0f;
+                batch.setColor(0, 0, 0, faintAlpha);
+                // Draws full black overlay
+                // Just reusing textbox texture but colored black
+                batch.draw(textbox, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+                batch.setColor(Color.WHITE);
+
+                if (faintAlpha >= 1.0f) {
+                    font.setColor(Color.RED);
+                    font.draw(batch, "Loop 1...", WORLD_WIDTH / 2 - 100, WORLD_HEIGHT / 2);
+
+                    loopAlpha += delta;
+                    if (loopAlpha > 3.0f) {
+                        // Transition to Chapter 2 (Loop 2) Screen
+                        game.setScreen(new Chapter_Two_Loop2Screen(game));
+                    }
                 }
             }
-        }
         } // Closing the 'else' block from line 422
 
         batch.end();
@@ -626,7 +884,8 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
             impactTimer += delta;
             if (whiteFlashAlpha > 0f) {
                 whiteFlashAlpha -= delta * 3f;
-                if (whiteFlashAlpha < 0f) whiteFlashAlpha = 0f;
+                if (whiteFlashAlpha < 0f)
+                    whiteFlashAlpha = 0f;
             }
             if (impactTimer >= 0.3f && !showSiluetMobil) {
                 showSiluetMobil = true;
@@ -634,7 +893,7 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
             }
             if (showSiluetMobil) {
                 siluetMobilY -= delta * 800f;
-                if (siluetMobilY <= -400f) {
+                if (siluetMobilY <= -500f) {
                     showSiluetMobil = false;
                     showKesakitan = true;
                     showMobilRusak = true;
@@ -725,6 +984,44 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
         font.setColor(Color.WHITE);
     }
 
+    private void drawCharacter(float delta) {
+        float drawHeight = 361f;
+        TextureRegion currentFrame = null;
+
+        if (isWalking) {
+            float speedMultiplier = 1.0f;
+            if (currentSubScene == SubScene.PLAY_DRIVING
+                    && (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT))) {
+                speedMultiplier = 1.8f;
+            }
+            walkTime += delta * speedMultiplier;
+            if (walkDirectionRight && walkRightAnim != null) {
+                currentFrame = walkRightAnim.getKeyFrame(walkTime);
+            } else if (!walkDirectionRight && walkLeftAnim != null) {
+                currentFrame = walkLeftAnim.getKeyFrame(walkTime);
+            }
+        } else {
+            walkTime = 0f;
+        }
+
+        if (currentFrame == null) {
+            if (idleAnim != null) {
+                idleTime += delta;
+                currentFrame = idleAnim.getKeyFrame(idleTime);
+            } else {
+                currentFrame = ayuIdleFrame;
+            }
+        } else {
+            idleTime = 0f;
+        }
+
+        float drawWidth = drawHeight;
+        if (currentFrame.getRegionHeight() > 0) {
+            drawWidth = drawHeight * ((float) currentFrame.getRegionWidth() / currentFrame.getRegionHeight());
+        }
+        batch.draw(currentFrame, ayuX, ayuY, drawWidth, drawHeight);
+    }
+
     @Override
     public void dispose() {
         batch.dispose();
@@ -734,10 +1031,15 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
         bgDriving.dispose();
         bgLobby.dispose();
         bgTangga.dispose();
-        if (mobilMerah != null) mobilMerah.dispose();
-        if (kesakitan != null) kesakitan.dispose();
-        if (siluetMobil != null) siluetMobil.dispose();
-        if (mobilRusak != null) mobilRusak.dispose();
-        if (ayuSelesaiPresentasi != null) ayuSelesaiPresentasi.dispose();
+        if (mobilMerah != null)
+            mobilMerah.dispose();
+        if (kesakitan != null)
+            kesakitan.dispose();
+        if (siluetMobil != null)
+            siluetMobil.dispose();
+        if (mobilRusak != null)
+            mobilRusak.dispose();
+        if (ayuSelesaiPresentasi != null)
+            ayuSelesaiPresentasi.dispose();
     }
 }
