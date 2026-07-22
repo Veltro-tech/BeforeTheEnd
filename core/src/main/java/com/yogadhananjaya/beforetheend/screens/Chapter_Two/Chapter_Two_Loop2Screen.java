@@ -81,12 +81,12 @@ public class Chapter_Two_Loop2Screen extends ScreenAdapter {
         font.getData().setScale(2f);
 
         bgKamar = new Texture("backgrounds/kamar-ayu-6.png");
-        bgKamarTidur = new Texture("backgrounds/Chapter_2/kamar-ayu-tidur.png");
-        bgDapur = new Texture("backgrounds/dapur-5.png");
-        bgKM = new Texture("backgrounds/scene-4.png");
+        bgKamarTidur = loadTexture("backgrounds/Chapter_2/kamar-ayu-tidur.png");
+        bgDapur = loadTexture("backgrounds/dapur-5.png");
+        bgKM = loadTexture("backgrounds/scene-4.png");
         activeBg = bgKamarTidur;
         textbox = new Texture("ui/textbox.png");
-        ibuSprite = new Texture("character/ibu-ayu/diam.png");
+        ibuSprite = loadTexture("character/ibu-ayu/diam.png");
 
         Pixmap pm = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
         pm.setColor(Color.BLACK);
@@ -99,6 +99,16 @@ public class Chapter_Two_Loop2Screen extends ScreenAdapter {
 
         setupAnimations();
         setupDialogQueue();
+    }
+
+    private Texture loadTexture(String path) {
+        if (Gdx.files.internal(path).exists()) return new Texture(path);
+        Pixmap p = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+        p.setColor(Color.MAGENTA);
+        p.fill();
+        Texture t = new Texture(p);
+        p.dispose();
+        return t;
     }
 
     private void setupAnimations() {
@@ -123,13 +133,19 @@ public class Chapter_Two_Loop2Screen extends ScreenAdapter {
             walkLeftAnim = new Animation<>(0.1f, leftFrames, Animation.PlayMode.LOOP);
 
         Array<TextureRegion> idleFrames = new Array<>();
-        for (int i = 1; i <= 229; i++) {
+        int totalIdleFrames = 229;
+        int maxIdleFrames = 30;
+        int step = Math.max(1, totalIdleFrames / maxIdleFrames);
+        for (int i = 1; i <= totalIdleFrames; i += step) {
             String p = "character/Ayu/ayu-yoga/Ayu_yoga_" + i + ".png";
             if (Gdx.files.internal(p).exists())
                 idleFrames.add(new TextureRegion(new Texture(p)));
+            if (idleFrames.size >= maxIdleFrames) break;
         }
-        if (idleFrames.size > 0)
-            idleAnim = new Animation<>(0.08f, idleFrames, Animation.PlayMode.LOOP);
+        if (idleFrames.size > 0) {
+            float idleFrameDuration = 0.08f * step;
+            idleAnim = new Animation<>(idleFrameDuration, idleFrames, Animation.PlayMode.LOOP);
+        }
     }
 
     private void setupDialogQueue() {
@@ -384,6 +400,11 @@ public class Chapter_Two_Loop2Screen extends ScreenAdapter {
     }
 
     @Override
+    public void hide() {
+        dispose();
+    }
+
+    @Override
     public void render(float delta) {
         stateTime += delta;
         subsceneTimer += delta;
@@ -396,7 +417,7 @@ public class Chapter_Two_Loop2Screen extends ScreenAdapter {
             }
         } else if (currentSubScene == SubScene.SCENE_8D_FADE) {
             if (subsceneTimer >= 3.0f) {
-                game.setScreen(new Chapter_Three_Loop3Screen(game));
+                game.setScreen(new Chapter_Two_Loop3Screen(game));
                 return;
             }
         } else if (currentSubScene != SubScene.SCENE_8A_TRANSITION) {

@@ -194,10 +194,18 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
 
         setupDialogQueue();
 
-        if (Gdx.files.internal("SFX/heartbeat.mp3").exists())
-            heartbeatSfx = Gdx.audio.newSound(Gdx.files.internal("SFX/heartbeat.mp3"));
-        if (Gdx.files.internal("SFX/tunetank.com_breathing-heavily-female.wav").exists())
-            nightmareBreathingSfx = Gdx.audio.newSound(Gdx.files.internal("SFX/tunetank.com_breathing-heavily-female.wav"));
+        try {
+            if (Gdx.files.internal("SFX/heartbeat.mp3").exists())
+                heartbeatSfx = Gdx.audio.newSound(Gdx.files.internal("SFX/heartbeat.mp3"));
+        } catch (Exception e) {
+            heartbeatSfx = null;
+        }
+        try {
+            if (Gdx.files.internal("SFX/tunetank.com_breathing-heavily-female.wav").exists())
+                nightmareBreathingSfx = Gdx.audio.newSound(Gdx.files.internal("SFX/tunetank.com_breathing-heavily-female.wav"));
+        } catch (Exception e) {
+            nightmareBreathingSfx = null;
+        }
     }
 
     private Texture createSolidTexture(Color color, int w, int h) {
@@ -250,16 +258,21 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
             walkLeftAnim = new Animation<>(0.1f, leftFrames, Animation.PlayMode.LOOP);
         }
 
-        // Idle yoga animation
+        // Idle yoga animation (sampled to avoid memory overload)
         Array<TextureRegion> idleFrames = new Array<>();
-        for (int i = 1; i <= 229; i++) {
+        int totalIdleFrames = 229;
+        int maxIdleFrames = 30;
+        int step = Math.max(1, totalIdleFrames / maxIdleFrames);
+        for (int i = 1; i <= totalIdleFrames; i += step) {
             String path = "character/Ayu/ayu-yoga/Ayu_yoga_" + i + ".png";
             if (Gdx.files.internal(path).exists()) {
                 idleFrames.add(new TextureRegion(new Texture(path)));
             }
+            if (idleFrames.size >= maxIdleFrames) break;
         }
         if (idleFrames.size > 0) {
-            idleAnim = new Animation<>(0.08f, idleFrames, Animation.PlayMode.LOOP);
+            float idleFrameDuration = 0.08f * step;
+            idleAnim = new Animation<>(idleFrameDuration, idleFrames, Animation.PlayMode.LOOP);
         }
 
         if (Gdx.files.internal("character/Ayu/selesail_presentasi_kiri.png").exists()) {
@@ -472,7 +485,7 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
 
         // Debug: F10 ke Loop 3
         if (Gdx.input.isKeyJustPressed(Input.Keys.F10)) {
-            game.setScreen(new Chapter_Three_Loop3Screen(game));
+            game.setScreen(new Chapter_Two_Loop3Screen(game));
             return;
         }
 
@@ -568,6 +581,12 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
                 }
             }
         }
+    }
+
+    @Override
+    public void hide() {
+        stopNightmareSfx();
+        dispose();
     }
 
     @Override
@@ -693,7 +712,7 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
                 // Mobil Merah with scale approach
                 if (showMobilMerah && mobilMerah != null) {
                     float x = mobilMerahX - 500f;
-                    float y = ayuY * 0.72f;
+                    float y = ayuY * 0.54f;
                     batch.draw(mobilMerah, x, y, 500f, 375f);
                 }
                 if (showMobilRusak && mobilRusak != null) {
@@ -710,7 +729,7 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
             } else if (currentSubScene == SubScene.DRIVING_QTE) {
                 if (showMobilMerah && mobilMerah != null) {
                     float x = mobilMerahX - 500f;
-                    float y = ayuY * 0.72f;
+                    float y = ayuY * 0.54f;
                     batch.draw(mobilMerah, x, y, 500f, 375f);
                 }
                 if (whiteFlashAlpha > 0f) {

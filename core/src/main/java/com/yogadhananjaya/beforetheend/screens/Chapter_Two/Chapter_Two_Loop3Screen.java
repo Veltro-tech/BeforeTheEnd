@@ -23,7 +23,7 @@ import com.yogadhananjaya.beforetheend.screens.DialogLine;
 import java.util.LinkedList;
 import java.util.Queue;
 
-public class Chapter_Three_Loop3Screen extends ScreenAdapter {
+public class Chapter_Two_Loop3Screen extends ScreenAdapter {
     final BeforeTheEndGame game;
     OrthographicCamera camera;
     SpriteBatch batch;
@@ -97,7 +97,7 @@ public class Chapter_Three_Loop3Screen extends ScreenAdapter {
     final float WORLD_WIDTH = 1920f;
     final float WORLD_HEIGHT = 1080f;
 
-    public Chapter_Three_Loop3Screen(final BeforeTheEndGame game) {
+    public Chapter_Two_Loop3Screen(final BeforeTheEndGame game) {
         this.game = game;
         camera = new OrthographicCamera();
         camera.setToOrtho(false, WORLD_WIDTH, WORLD_HEIGHT);
@@ -159,11 +159,18 @@ public class Chapter_Three_Loop3Screen extends ScreenAdapter {
         if (leftFrames.size > 0) walkLeftAnim = new Animation<>(0.1f, leftFrames, Animation.PlayMode.LOOP);
 
         Array<TextureRegion> idleFrames = new Array<>();
-        for (int i = 1; i <= 229; i++) {
+        int totalIdleFrames = 229;
+        int maxIdleFrames = 30;
+        int step = Math.max(1, totalIdleFrames / maxIdleFrames);
+        for (int i = 1; i <= totalIdleFrames; i += step) {
             String p = "character/Ayu/ayu-yoga/Ayu_yoga_" + i + ".png";
             if (Gdx.files.internal(p).exists()) idleFrames.add(new TextureRegion(new Texture(p)));
+            if (idleFrames.size >= maxIdleFrames) break;
         }
-        if (idleFrames.size > 0) idleAnim = new Animation<>(0.08f, idleFrames, Animation.PlayMode.LOOP);
+        if (idleFrames.size > 0) {
+            float idleFrameDuration = 0.08f * step;
+            idleAnim = new Animation<>(idleFrameDuration, idleFrames, Animation.PlayMode.LOOP);
+        }
     }
 
     private void setupDialogQueue() {
@@ -595,6 +602,11 @@ public class Chapter_Three_Loop3Screen extends ScreenAdapter {
             batch.setColor(Color.WHITE);
         }
         font.getData().setScale(2f); font.setColor(Color.WHITE);
+    }
+
+    @Override
+    public void hide() {
+        dispose();
     }
 
     @Override

@@ -204,6 +204,11 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
     public void show() {
     }
 
+    @Override
+    public void hide() {
+        dispose();
+    }
+
     private Texture createSolidTexture(Color color, int width, int height) {
         Pixmap pm = new Pixmap(width, height, Pixmap.Format.RGBA8888);
         pm.setColor(color);
@@ -330,13 +335,13 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
 
         // Load walk animations
         Array<TextureRegion> rightFrames = new Array<>();
-        for (int i = 0; i <= 12; i++) {
-            String p = "character/Ayu/ayu-yoga-jalan/frame_" + (i < 10 ? "0" : "") + i + "_delay-0.11s.png";
-            if (Gdx.files.internal(p).exists())
-                rightFrames.add(new TextureRegion(new Texture(p)));
+        for (int i = 1; i <= 8; i++) {
+            String rightPath = "character/Ayu/jalan_kanan_" + i + ".png";
+            if (Gdx.files.internal(rightPath).exists())
+                rightFrames.add(new TextureRegion(new Texture(rightPath)));
         }
         if (rightFrames.size > 0) {
-            walkRightAnim = new Animation<>(0.11f, rightFrames, Animation.PlayMode.LOOP);
+            walkRightAnim = new Animation<>(0.1f, rightFrames, Animation.PlayMode.LOOP);
         }
 
         Array<TextureRegion> leftFrames = new Array<>();
@@ -414,6 +419,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.F6)) {
             game.setScreen(new com.yogadhananjaya.beforetheend.screens.Chapter_Two.Chapter_Two_OneScreen(game));
+            return;
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.F5)) {
             currentState = State.PLAY_LOBBY;
@@ -445,7 +451,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 }
             }
 
-            if (currentState == State.DIALOG_ROOM || currentState == State.PLAY_ROOM
+            if (currentState == State.WAKING_UP || currentState == State.DIALOG_ROOM || currentState == State.PLAY_ROOM
                     || currentState == State.ROOM_TO_KITCHEN_TRANSITION) {
                 if (useInitialBg) {
                     batch.draw(roomBgInitial, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
@@ -459,7 +465,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                     currentState == State.KITCHEN_TO_DRIVING_TRANSITION) {
                 batch.draw(kitchenBg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
                 // Draw Ibu static di Dapur
-                batch.draw(ibuSprite, 1400f, 100f, 198f, 334f);
+                batch.draw(ibuSprite, 1400f, 100f, 198f * 1.08f, 334f * 1.08f);
             } else if (currentState == State.PLAY_DRIVING || currentState == State.DRIVING_QTE
                     || currentState == State.DIALOG_DRIVING
                     || currentState == State.DRIVING_TO_GARDEN_TRANSITION) {
@@ -469,7 +475,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                     batch.draw(mobilRusak, 1400f, 100f, 500f, 375f);
                 } else if (showMobilMerah && mobilMerah != null) {
                     float x = mobilMerahX - 500f;
-                    float y = ayuY * 0.9f;
+                    float y = ayuY * 0.54f;
                     batch.draw(mobilMerah, x, y, 500f, 375f);
                 }
                 // Siluet mobil shadow pass
@@ -478,7 +484,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 }
                 // Kesakitan character on QTE fail
                 if (showKesakitan && kesakitan != null) {
-                    batch.draw(kesakitan, ayuX, ayuY, 198f, 334f);
+                    batch.draw(kesakitan, ayuX, ayuY, 198f * 1.08f, 334f * 1.08f);
                 }
             } else if (currentState == State.PLAY_GARDEN || currentState == State.GARDEN_TO_LOBBY_TRANSITION) {
                 batch.draw(scene4Bg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
@@ -570,7 +576,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                     setupRoomDialog();
                     if (bgmMusic != null && !bgmMusic.isPlaying()) {
                         bgmMusic.setLooping(true);
-                        bgmMusic.setVolume(0.4f);
+                        bgmMusic.setVolume(0.32f); // Diperkecil 20% (0.4f -> 0.32f)
                         bgmMusic.play();
                     }
                 }
@@ -1132,8 +1138,8 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
             return;
         DialogInfo dialog = currentDialogs.get(currentDialogIndex);
 
-        float drawWidth = 198f;
-        float drawHeight = 361f;
+        float drawWidth = 198f * 1.08f;
+        float drawHeight = 361f * 1.08f;
 
         float bubbleWidth;
         float bubbleHeight;
@@ -1269,8 +1275,8 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         }
 
         if (showHint) {
-            float characterWidth = 198f;
-            float characterHeight = 334f;
+        float characterWidth = 198f * 1.08f;
+        float characterHeight = 334f * 1.08f;
             float buttonWidth = 380f;
             float buttonHeight = 65f;
 
@@ -1387,8 +1393,8 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
     }
 
     private void drawCharacter(float delta) {
-        float drawHeight = 334f;
-        float drawWidth = 198f;
+        float drawHeight = 334f * 1.08f;
+        float drawWidth = 198f * 1.08f;
 
         if (isMoving) {
             float speedMultiplier = 1.0f;

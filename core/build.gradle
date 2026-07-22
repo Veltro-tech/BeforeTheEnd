@@ -15,3 +15,11 @@ dependencies {
 jar {
   duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
+
+tasks.register('generateBgFrames', JavaExec) {
+  description = 'Generate bg_mainmenu_sheet.png (16-frame sprite sheet)'
+  group = 'asset generation'
+  classpath = sourceSets.main.runtimeClasspath
+  mainClass = 'com.yogadhananjaya.beforetheend.tools.BgFrameGenerator'
+  workingDir = rootProject.projectDir
+}
