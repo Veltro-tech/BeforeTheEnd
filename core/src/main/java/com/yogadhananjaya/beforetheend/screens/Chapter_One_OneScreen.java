@@ -24,7 +24,6 @@ import java.util.List;
 
 public class Chapter_One_OneScreen extends ScreenAdapter {
     private enum State {
-        NIGHTMARE,
         WAKING_UP,
         DIALOG_ROOM, // Kamar
         PLAY_ROOM,
@@ -59,7 +58,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
     private final GlyphLayout glyphLayout;
 
     // States
-    private State currentState = State.NIGHTMARE;
+    private State currentState = State.WAKING_UP;
     private float stateTimer = 0f;
 
     // Textures & Assets
@@ -105,27 +104,6 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
     private Animation<TextureRegion> walkRightAnim;
     private Animation<TextureRegion> walkLeftAnim;
     private float walkTime = 0f;
-
-    // Nightmare Phase variables
-    private static class NightmareText {
-        String text;
-        float x, y;
-        float scale;
-        Color color;
-
-        NightmareText(String text, float x, float y, float scale, Color color) {
-            this.text = text;
-            this.x = x;
-            this.y = y;
-            this.scale = scale;
-            this.color = color;
-        }
-    }
-
-    private final List<NightmareText> nightmareTexts = new ArrayList<>();
-    private final String[] nightmarePhrases = { "Gagal", "Semua hancur", "Tidak ada waktu", "Kamu terlambat", "Sia-sia",
-            "Sudah berakhir" };
-    private float textSpawnTimer = 0f;
 
     // Waking Up Phase variables
     private float wakeFadeAlpha = 1f;
@@ -203,6 +181,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
     private boolean showingChoice = false;
     private int roomChoice = 0;
     private Sound messageSfx;
+    private Sound doorSfx;
     private Music bgmMusic;
     private long currentSfxId = -1;
 
@@ -223,11 +202,11 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
 
     @Override
     public void show() {
-        if (bgmMusic != null) {
-            bgmMusic.setLooping(true);
-            bgmMusic.setVolume(0.4f);
-            bgmMusic.play();
-        }
+    }
+
+    @Override
+    public void hide() {
+        dispose();
     }
 
     private Texture createSolidTexture(Color color, int width, int height) {
@@ -356,13 +335,13 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
 
         // Load walk animations
         Array<TextureRegion> rightFrames = new Array<>();
-        for (int i = 0; i <= 12; i++) {
-            String p = "character/Ayu/ayu-yoga-jalan/frame_" + (i < 10 ? "0" : "") + i + "_delay-0.11s.png";
-            if (Gdx.files.internal(p).exists())
-                rightFrames.add(new TextureRegion(new Texture(p)));
+        for (int i = 1; i <= 8; i++) {
+            String rightPath = "character/Ayu/jalan_kanan_" + i + ".png";
+            if (Gdx.files.internal(rightPath).exists())
+                rightFrames.add(new TextureRegion(new Texture(rightPath)));
         }
         if (rightFrames.size > 0) {
-            walkRightAnim = new Animation<>(0.11f, rightFrames, Animation.PlayMode.LOOP);
+            walkRightAnim = new Animation<>(0.1f, rightFrames, Animation.PlayMode.LOOP);
         }
 
         Array<TextureRegion> leftFrames = new Array<>();
@@ -377,6 +356,10 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
 
         if (Gdx.files.internal("SFX/sfx untuk message pop up.mp3").exists()) {
             messageSfx = Gdx.audio.newSound(Gdx.files.internal("SFX/sfx untuk message pop up.mp3"));
+        }
+
+        if (Gdx.files.internal("SFX/buka-pintu.mp3").exists()) {
+            doorSfx = Gdx.audio.newSound(Gdx.files.internal("SFX/buka-pintu.mp3"));
         }
 
         String bgmPath = "SFX/[Non Copyrighted Music] Scott Buckley - Growing Up [Piano].mp3";
@@ -399,8 +382,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         // Camera positioning logic
-        if (currentState != State.NIGHTMARE && currentState != State.TITLE_CARD
-                && currentState != State.FAINT_SEQUENCE) {
+        if (currentState != State.TITLE_CARD && currentState != State.FAINT_SEQUENCE) {
             camera.zoom = 1.0f;
             float halfViewportWidth = (camera.viewportWidth * camera.zoom) / 2f;
             float halfViewportHeight = (camera.viewportHeight * camera.zoom) / 2f;
@@ -417,11 +399,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
             camera.position.set(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 0);
         }
 
-        if (currentState == State.NIGHTMARE) {
-            float shakeIntensity = 5f;
-            camera.position.add(MathUtils.random(-shakeIntensity, shakeIntensity),
-                    MathUtils.random(-shakeIntensity, shakeIntensity), 0);
-        } else if (drivingShakeTimer > 0f) {
+        if (drivingShakeTimer > 0f) {
             drivingShakeTimer -= delta;
             float shakeIntensity = 15f; // Goncangan panik menyetir ugal-ugalan
             camera.position.add(MathUtils.random(-shakeIntensity, shakeIntensity),
@@ -441,6 +419,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.F6)) {
             game.setScreen(new com.yogadhananjaya.beforetheend.screens.Chapter_Two.Chapter_Two_OneScreen(game));
+            return;
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.F5)) {
             currentState = State.PLAY_LOBBY;
@@ -456,7 +435,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         batch.begin();
 
         // Backgrounds
-        if (currentState != State.NIGHTMARE && currentState != State.TITLE_CARD) {
+        if (currentState != State.TITLE_CARD) {
              useInitialBg = false;
              if (currentState == State.WAKING_UP) {
                 useInitialBg = true;
@@ -472,7 +451,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 }
             }
 
-            if (currentState == State.DIALOG_ROOM || currentState == State.PLAY_ROOM
+            if (currentState == State.WAKING_UP || currentState == State.DIALOG_ROOM || currentState == State.PLAY_ROOM
                     || currentState == State.ROOM_TO_KITCHEN_TRANSITION) {
                 if (useInitialBg) {
                     batch.draw(roomBgInitial, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
@@ -486,7 +465,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                     currentState == State.KITCHEN_TO_DRIVING_TRANSITION) {
                 batch.draw(kitchenBg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
                 // Draw Ibu static di Dapur
-                batch.draw(ibuSprite, 1400f, 100f, 198f, 334f);
+                batch.draw(ibuSprite, 1400f, 100f, 198f * 1.08f, 334f * 1.08f);
             } else if (currentState == State.PLAY_DRIVING || currentState == State.DRIVING_QTE
                     || currentState == State.DIALOG_DRIVING
                     || currentState == State.DRIVING_TO_GARDEN_TRANSITION) {
@@ -496,7 +475,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                     batch.draw(mobilRusak, 1400f, 100f, 500f, 375f);
                 } else if (showMobilMerah && mobilMerah != null) {
                     float x = mobilMerahX - 500f;
-                    float y = ayuY * 0.9f;
+                    float y = ayuY * 0.54f;
                     batch.draw(mobilMerah, x, y, 500f, 375f);
                 }
                 // Siluet mobil shadow pass
@@ -505,7 +484,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 }
                 // Kesakitan character on QTE fail
                 if (showKesakitan && kesakitan != null) {
-                    batch.draw(kesakitan, ayuX, ayuY, 198f, 334f);
+                    batch.draw(kesakitan, ayuX, ayuY, 198f * 1.08f, 334f * 1.08f);
                 }
             } else if (currentState == State.PLAY_GARDEN || currentState == State.GARDEN_TO_LOBBY_TRANSITION) {
                 batch.draw(scene4Bg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
@@ -532,9 +511,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         }
 
         // Overlay screens
-        if (currentState == State.NIGHTMARE) {
-            renderNightmare();
-        } else if (currentState == State.WAKING_UP) {
+        if (currentState == State.WAKING_UP) {
             batch.setColor(1, 1, 1, wakeFadeAlpha);
             batch.draw(blackTexture, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
             batch.setColor(Color.WHITE);
@@ -590,30 +567,6 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
 
     private void updateState(float delta) {
         switch (currentState) {
-            case NIGHTMARE:
-                textSpawnTimer += delta;
-                if (textSpawnTimer >= 0.3f) {
-                    textSpawnTimer = 0f;
-                    String phrase = nightmarePhrases[MathUtils.random(nightmarePhrases.length - 1)];
-                    float x = MathUtils.random(100f, WORLD_WIDTH - 300f);
-                    float y = MathUtils.random(100f, WORLD_HEIGHT - 100f);
-                    float scale = MathUtils.random(1.5f, 4f);
-                    Color color = new Color(MathUtils.random(0.5f, 1f), 0f, 0f, MathUtils.random(0.5f, 1f));
-                    nightmareTexts.add(new NightmareText(phrase, x, y, scale, color));
-                }
-
-                // Tekan E untuk skip langsung ke bangun tidur
-                if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
-                    currentState = State.WAKING_UP;
-                    stateTimer = 0f;
-                    nightmareTexts.clear();
-                } else if (stateTimer >= 10.0f) {
-                    currentState = State.WAKING_UP;
-                    stateTimer = 0f;
-                    nightmareTexts.clear();
-                }
-                break;
-
             case WAKING_UP:
                 wakeFadeAlpha = 1f - (stateTimer / 2.0f);
                 if (wakeFadeAlpha <= 0f) {
@@ -621,6 +574,11 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                     currentState = State.DIALOG_ROOM;
                     stateTimer = 0f;
                     setupRoomDialog();
+                    if (bgmMusic != null && !bgmMusic.isPlaying()) {
+                        bgmMusic.setLooping(true);
+                        bgmMusic.setVolume(0.32f); // Diperkecil 20% (0.4f -> 0.32f)
+                        bgmMusic.play();
+                    }
                 }
                 break;
 
@@ -654,6 +612,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 if (ayuX >= WORLD_WIDTH - 300f && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
                     currentState = State.ROOM_TO_KITCHEN_TRANSITION;
                     transitionTimer = 0f;
+                    if (doorSfx != null) doorSfx.play(1.0f);
                 }
                 break;
 
@@ -698,8 +657,9 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                     }
                 } else if (!sudahMandi) {
                     if (ayuX >= WORLD_WIDTH - 300f && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
-                        currentState = State.KITCHEN_BATH_TRANSITION;
-                        transitionTimer = 0f;
+                            currentState = State.KITCHEN_BATH_TRANSITION;
+                            transitionTimer = 0f;
+                            if (doorSfx != null) doorSfx.play(1.0f);
                     }
                 } else {
                     if (ayuX <= 60f && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
@@ -762,8 +722,9 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                     }
                 } else if (!sudahMandi) {
                     if (ayuX >= WORLD_WIDTH - 300f && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
-                        currentState = State.KITCHEN_BATH_TRANSITION;
-                        transitionTimer = 0f;
+                            currentState = State.KITCHEN_BATH_TRANSITION;
+                            transitionTimer = 0f;
+                            if (doorSfx != null) doorSfx.play(1.0f);
                     }
                 } else {
                     if (ayuX <= 60f && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
@@ -787,6 +748,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                         || Gdx.input.justTouched()) {
                     advanceDialog(State.KITCHEN_TO_DRIVING_TRANSITION);
                     transitionTimer = 0f;
+                    if (doorSfx != null) doorSfx.play(1.0f);
                 }
                 break;
 
@@ -1176,8 +1138,8 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
             return;
         DialogInfo dialog = currentDialogs.get(currentDialogIndex);
 
-        float drawWidth = 198f;
-        float drawHeight = 361f;
+        float drawWidth = 198f * 1.08f;
+        float drawHeight = 361f * 1.08f;
 
         float bubbleWidth;
         float bubbleHeight;
@@ -1313,8 +1275,8 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         }
 
         if (showHint) {
-            float characterWidth = 198f;
-            float characterHeight = 334f;
+        float characterWidth = 198f * 1.08f;
+        float characterHeight = 334f * 1.08f;
             float buttonWidth = 380f;
             float buttonHeight = 65f;
 
@@ -1356,20 +1318,6 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
             batch.draw(whiteTexture, triX - 2f, triY - 2f, 4f, 2f);
             batch.setColor(Color.WHITE);
         }
-    }
-
-    private void renderNightmare() {
-        for (NightmareText nt : nightmareTexts) {
-            font.getData().setScale(nt.scale);
-            font.setColor(nt.color);
-            font.draw(batch, nt.text, nt.x, nt.y);
-        }
-        font.getData().setScale(1.5f);
-        font.setColor(Color.WHITE);
-        font.draw(batch, "Tekan E untuk Skip", WORLD_WIDTH - 300f, 50f);
-
-        font.getData().setScale(2f);
-        font.setColor(Color.WHITE);
     }
 
     private void renderDrivingQTE() {
@@ -1445,8 +1393,8 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
     }
 
     private void drawCharacter(float delta) {
-        float drawHeight = 334f;
-        float drawWidth = 198f;
+        float drawHeight = 334f * 1.08f;
+        float drawWidth = 198f * 1.08f;
 
         if (isMoving) {
             float speedMultiplier = 1.0f;
@@ -1535,6 +1483,8 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
             temanSprite.dispose();
         if (messageSfx != null)
             messageSfx.dispose();
+        if (doorSfx != null)
+            doorSfx.dispose();
         if (bgmMusic != null) {
             bgmMusic.stop();
             bgmMusic.dispose();

@@ -3,6 +3,7 @@ package com.yogadhananjaya.beforetheend.screens.Chapter_Two;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.ScreenAdapter;
+import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
@@ -121,6 +122,9 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
     private final String[] nightmarePhrases = { "Gagal", "Semua hancur", "Tidak ada waktu", "Kamu terlambat", "Sia-sia",
             "Sudah berakhir" };
     private float textSpawnTimer = 0f;
+    private Sound heartbeatSfx;
+    private Sound nightmareBreathingSfx;
+    private boolean nightmareSfxPlaying = false;
     boolean phoneTriggerQueued = false;
     boolean lobbyExploring = false;
 
@@ -189,6 +193,19 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
         }
 
         setupDialogQueue();
+
+        try {
+            if (Gdx.files.internal("SFX/heartbeat.mp3").exists())
+                heartbeatSfx = Gdx.audio.newSound(Gdx.files.internal("SFX/heartbeat.mp3"));
+        } catch (Exception e) {
+            heartbeatSfx = null;
+        }
+        try {
+            if (Gdx.files.internal("SFX/tunetank.com_breathing-heavily-female.wav").exists())
+                nightmareBreathingSfx = Gdx.audio.newSound(Gdx.files.internal("SFX/tunetank.com_breathing-heavily-female.wav"));
+        } catch (Exception e) {
+            nightmareBreathingSfx = null;
+        }
     }
 
     private Texture createSolidTexture(Color color, int w, int h) {
@@ -198,6 +215,12 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
         Texture tex = new Texture(pm);
         pm.dispose();
         return tex;
+    }
+
+    private void stopNightmareSfx() {
+        nightmareSfxPlaying = false;
+        if (heartbeatSfx != null) heartbeatSfx.stop();
+        if (nightmareBreathingSfx != null) nightmareBreathingSfx.stop();
     }
 
     private void setupAnimations() {
@@ -235,16 +258,21 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
             walkLeftAnim = new Animation<>(0.1f, leftFrames, Animation.PlayMode.LOOP);
         }
 
-        // Idle yoga animation
+        // Idle yoga animation (sampled to avoid memory overload)
         Array<TextureRegion> idleFrames = new Array<>();
-        for (int i = 1; i <= 229; i++) {
+        int totalIdleFrames = 229;
+        int maxIdleFrames = 30;
+        int step = Math.max(1, totalIdleFrames / maxIdleFrames);
+        for (int i = 1; i <= totalIdleFrames; i += step) {
             String path = "character/Ayu/ayu-yoga/Ayu_yoga_" + i + ".png";
             if (Gdx.files.internal(path).exists()) {
                 idleFrames.add(new TextureRegion(new Texture(path)));
             }
+            if (idleFrames.size >= maxIdleFrames) break;
         }
         if (idleFrames.size > 0) {
-            idleAnim = new Animation<>(0.08f, idleFrames, Animation.PlayMode.LOOP);
+            float idleFrameDuration = 0.08f * step;
+            idleAnim = new Animation<>(idleFrameDuration, idleFrames, Animation.PlayMode.LOOP);
         }
 
         if (Gdx.files.internal("character/Ayu/selesail_presentasi_kiri.png").exists()) {
@@ -433,6 +461,7 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
 
         // Debug: F7 restart ke scene 7-A
         if (Gdx.input.isKeyJustPressed(Input.Keys.F7)) {
+            stopNightmareSfx();
             currentSubScene = SubScene.NIGHTMARE;
             subsceneTimer = 0f;
             nightmareTexts.clear();
@@ -456,7 +485,7 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
 
         // Debug: F10 ke Loop 3
         if (Gdx.input.isKeyJustPressed(Input.Keys.F10)) {
-            game.setScreen(new Chapter_Three_Loop3Screen(game));
+            game.setScreen(new Chapter_Two_Loop3Screen(game));
             return;
         }
 
@@ -555,11 +584,22 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
     }
 
     @Override
+    public void hide() {
+        stopNightmareSfx();
+        dispose();
+    }
+
+    @Override
     public void render(float delta) {
         stateTime += delta;
 
         // Subscene Update Logic
         if (currentSubScene == SubScene.NIGHTMARE) {
+            if (!nightmareSfxPlaying) {
+                nightmareSfxPlaying = true;
+                if (heartbeatSfx != null) heartbeatSfx.loop(0.6f);
+                if (nightmareBreathingSfx != null) nightmareBreathingSfx.loop(0.5f);
+            }
             subsceneTimer += delta;
             textSpawnTimer += delta;
             if (textSpawnTimer >= 0.3f) {
@@ -572,10 +612,12 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
                 nightmareTexts.add(new NightmareText(phrase, x, y, scale, color));
             }
             if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+                stopNightmareSfx();
                 currentSubScene = SubScene.WAKING_UP;
                 subsceneTimer = 0f;
                 nightmareTexts.clear();
             } else if (subsceneTimer >= 10.0f) {
+                stopNightmareSfx();
                 currentSubScene = SubScene.WAKING_UP;
                 subsceneTimer = 0f;
                 nightmareTexts.clear();
@@ -670,7 +712,7 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
                 // Mobil Merah with scale approach
                 if (showMobilMerah && mobilMerah != null) {
                     float x = mobilMerahX - 500f;
-                    float y = ayuY * 0.72f;
+                    float y = ayuY * 0.54f;
                     batch.draw(mobilMerah, x, y, 500f, 375f);
                 }
                 if (showMobilRusak && mobilRusak != null) {
@@ -687,7 +729,7 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
             } else if (currentSubScene == SubScene.DRIVING_QTE) {
                 if (showMobilMerah && mobilMerah != null) {
                     float x = mobilMerahX - 500f;
-                    float y = ayuY * 0.72f;
+                    float y = ayuY * 0.54f;
                     batch.draw(mobilMerah, x, y, 500f, 375f);
                 }
                 if (whiteFlashAlpha > 0f) {
@@ -1024,6 +1066,9 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
 
     @Override
     public void dispose() {
+        stopNightmareSfx();
+        if (heartbeatSfx != null) heartbeatSfx.dispose();
+        if (nightmareBreathingSfx != null) nightmareBreathingSfx.dispose();
         batch.dispose();
         font.dispose();
         textbox.dispose();

@@ -14,7 +14,6 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator.FreeTypeFontParameter;
-import com.badlogic.gdx.math.Interpolation;
 import com.yogadhananjaya.beforetheend.BeforeTheEndGame;
 
 public class MainMenuScreen extends ScreenAdapter {
@@ -22,8 +21,8 @@ public class MainMenuScreen extends ScreenAdapter {
     OrthographicCamera camera;
     SpriteBatch batch;
 
-    BitmapFont font;         // Font kustom untuk menu
-    BitmapFont titleFont;    // Font kustom untuk judul utama
+    BitmapFont font; // Font kustom untuk menu
+    BitmapFont titleFont; // Font kustom untuk judul utama
     BitmapFont subTitleFont; // Font kustom untuk subtitle
 
     // Aset Gambar & Audio
@@ -40,11 +39,12 @@ public class MainMenuScreen extends ScreenAdapter {
         TRANSITION,
         MENU
     }
-    private MenuState currentState = MenuState.SPLASH;
+
+    private MenuState currentState = MenuState.TITLE;
     private float stateTime = 0f;
     private float splashTime = 0f;
     private float transitionTime = 0f;
-    
+
     // Konfigurasi Waktu
     private final float FADE_IN_TIME = 2.0f;
     private final float STAY_TIME = 3.0f;
@@ -52,13 +52,15 @@ public class MainMenuScreen extends ScreenAdapter {
     private final float TRANSITION_DURATION = 1.0f;
 
     // Variabel Menu
-    String[] menuItems = {"New Game", "Continue", "Chapter", "Setting", "Quit"};
+    String[] menuItems = { "New Game", "Continue", "Chapter", "Setting", "Quit" };
     int selectedIndex = 0;
 
     // Variabel Logika
     boolean hasSaveData = false; // Ubah ke true nanti jika sistem save sudah dibuat
     boolean isFading = false;
     float fadeAlpha = 0f;
+
+    float animTime;
 
     final float WORLD_WIDTH = 1280f;
     final float WORLD_HEIGHT = 720f;
@@ -109,9 +111,10 @@ public class MainMenuScreen extends ScreenAdapter {
 
         // --- SETUP CUSTOM FONT (.TTF) UNTUK MENU ---
         if (Gdx.files.internal("fonts/Merriweather-VariableFont_opsz,wdth,wght.ttf").exists()) {
-            FreeTypeFontGenerator menuGenerator = new FreeTypeFontGenerator(Gdx.files.internal("fonts/Merriweather-VariableFont_opsz,wdth,wght.ttf"));
+            FreeTypeFontGenerator menuGenerator = new FreeTypeFontGenerator(
+                    Gdx.files.internal("fonts/Merriweather-VariableFont_opsz,wdth,wght.ttf"));
             FreeTypeFontParameter menuParameter = new FreeTypeFontParameter();
-            menuParameter.size = 28;
+            menuParameter.size = 174;
             menuParameter.color = Color.WHITE;
             font = menuGenerator.generateFont(menuParameter);
             menuGenerator.dispose();
@@ -125,61 +128,56 @@ public class MainMenuScreen extends ScreenAdapter {
             FreeTypeFontParameter parameter = new FreeTypeFontParameter();
 
             // Atur Parameter untuk Judul Utama
-            parameter.size = 72;
+            parameter.size = 101;
             parameter.color = Color.WHITE;
             titleFont = generator.generateFont(parameter);
 
             // Atur Parameter untuk Subtitle
-            parameter.size = 28;
-            parameter.color = Color.LIGHT_GRAY;
+            parameter.size = 39;
             subTitleFont = generator.generateFont(parameter);
 
             generator.dispose();
         } else {
             titleFont = new BitmapFont();
-            titleFont.getData().setScale(3.0f);
+            titleFont.getData().setScale(4.2f);
             subTitleFont = new BitmapFont();
-            subTitleFont.getData().setScale(1.5f);
+            subTitleFont.getData().setScale(2.1f);
         }
 
         // --- SETUP BACKGROUND MUSIC ---
         if (Gdx.files.internal("music/music_mainmenu.mp3").exists()) {
             bgMusic = Gdx.audio.newMusic(Gdx.files.internal("music/music_mainmenu.mp3"));
             bgMusic.setLooping(true);
-            bgMusic.setVolume(0.2f); // Santai mengayun, tidak kencang
+            bgMusic.setVolume(0.16f); // Diperkecil 20% (0.2f -> 0.16f)
             bgMusic.play();
         }
+
+        animTime = 0f;
     }
 
     private void handleInput() {
-        if (currentState == MenuState.SPLASH) {
-            if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER) || Gdx.input.isKeyJustPressed(Input.Keys.SPACE) || Gdx.input.justTouched()) {
-                currentState = MenuState.TITLE;
-            }
-            return;
-        }
-
         if (currentState == MenuState.TITLE) {
-            if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER) || Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
-                currentState = MenuState.TRANSITION;
-                transitionTime = 0f;
+            if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER) || Gdx.input.isKeyJustPressed(Input.Keys.SPACE)
+                    || Gdx.input.justTouched()) {
+                currentState = MenuState.MENU;
             }
             return;
         }
 
         if (currentState == MenuState.MENU) {
             // Jika sedang transisi redup, abaikan semua input
-            if (isFading) return;
+            if (isFading)
+                return;
 
             if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
                 selectedIndex--;
-                if (selectedIndex < 0) selectedIndex = menuItems.length - 1;
-            }
-            else if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
+                if (selectedIndex < 0)
+                    selectedIndex = menuItems.length - 1;
+            } else if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
                 selectedIndex++;
-                if (selectedIndex >= menuItems.length) selectedIndex = 0;
-            }
-            else if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
+                if (selectedIndex >= menuItems.length)
+                    selectedIndex = 0;
+            } else if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
                 selectMenuItem();
             }
         }
@@ -188,8 +186,9 @@ public class MainMenuScreen extends ScreenAdapter {
     private void selectMenuItem() {
         switch (selectedIndex) {
             case 0: // New Game
-                System.out.println("Memulai New Game... Layar Meredup");
-                isFading = true; // Trigger animasi fade to black
+                if (bgMusic != null)
+                    bgMusic.stop();
+                game.setScreen(new Chapter_One_OneScreen(game));
                 break;
             case 1: // Continue
                 if (hasSaveData) {
@@ -214,19 +213,7 @@ public class MainMenuScreen extends ScreenAdapter {
     @Override
     public void render(float delta) {
         stateTime += delta;
-
-        // Logika Transisi State
-        if (currentState == MenuState.SPLASH) {
-            splashTime += delta;
-            if (splashTime >= FADE_IN_TIME + STAY_TIME + FADE_OUT_TIME) {
-                currentState = MenuState.TITLE;
-            }
-        } else if (currentState == MenuState.TRANSITION) {
-            transitionTime += delta;
-            if (transitionTime >= TRANSITION_DURATION) {
-                currentState = MenuState.MENU;
-            }
-        }
+        animTime += delta;
 
         handleInput();
 
@@ -236,45 +223,13 @@ public class MainMenuScreen extends ScreenAdapter {
         camera.update();
         batch.setProjectionMatrix(camera.combined);
 
-        // 1. Render Splash Screen
-        if (currentState == MenuState.SPLASH) {
-            batch.begin();
-
-            float alpha;
-            if (splashTime < FADE_IN_TIME) {
-                alpha = splashTime / FADE_IN_TIME;
-            } else if (splashTime < FADE_IN_TIME + STAY_TIME) {
-                alpha = 1f;
-            } else if (splashTime < FADE_IN_TIME + STAY_TIME + FADE_OUT_TIME) {
-                alpha = 1f - (splashTime - FADE_IN_TIME - STAY_TIME) / FADE_OUT_TIME;
-            } else {
-                alpha = 0f;
-            }
-
-            // Center the Paus.png logo
-            float logoWidth = logoTexture.getWidth();
-            float logoHeight = logoTexture.getHeight();
-            float logoX = (WORLD_WIDTH - logoWidth) / 2;
-            float logoY = (WORLD_HEIGHT - logoHeight) / 2;
-
-            batch.setColor(1, 1, 1, alpha);
-            batch.draw(logoTexture, logoX, logoY, logoWidth, logoHeight);
-            batch.setColor(Color.WHITE);
-
-            batch.end();
-            return;
-        }
-
-        // 2. Render Main Game Menu Screens (TITLE, TRANSITION, MENU)
         batch.begin();
 
-        // Selalu gambar background menu utama
         batch.draw(bgImage, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
-        // Hitung Posisi Title & Subtitle berdasarkan state
         float titleX, titleY;
         float subX, subY;
-        
+
         glyphLayout.setText(titleFont, "BEFORE THE END");
         float centerTitleX = (WORLD_WIDTH - glyphLayout.width) / 2;
         float centerTitleY = 450f;
@@ -293,12 +248,6 @@ public class MainMenuScreen extends ScreenAdapter {
             titleY = centerTitleY;
             subX = centerSubX;
             subY = centerSubY;
-        } else if (currentState == MenuState.TRANSITION) {
-            float progress = transitionTime / TRANSITION_DURATION;
-            titleX = Interpolation.pow3Out.apply(centerTitleX, targetTitleX, progress);
-            titleY = Interpolation.pow3Out.apply(centerTitleY, targetTitleY, progress);
-            subX = Interpolation.pow3Out.apply(centerSubX, targetSubX, progress);
-            subY = Interpolation.pow3Out.apply(centerSubY, targetSubY, progress);
         } else {
             titleX = targetTitleX;
             titleY = targetTitleY;
@@ -306,72 +255,39 @@ public class MainMenuScreen extends ScreenAdapter {
             subY = targetSubY;
         }
 
-        // Gambar Judul dan Subtitle
         titleFont.draw(batch, "BEFORE THE END", titleX, titleY);
         subTitleFont.draw(batch, "A GAME BY GROUP 5", subX, subY);
 
-        // Render Press Enter To Start (Hanya saat TITLE atau TRANSITION)
-        if (currentState == MenuState.TITLE || currentState == MenuState.TRANSITION) {
+        if (currentState == MenuState.TITLE) {
             glyphLayout.setText(font, "Press Enter To Start");
             float pressX = (WORLD_WIDTH - glyphLayout.width) / 2;
-            float pressY = 200f;
-            
-            float pressAlpha = 0f;
-            if (currentState == MenuState.TITLE) {
-                pressAlpha = (float) Math.abs(Math.sin(stateTime * 3f));
-            } else {
-                // Fade out Press Enter during transition
-                pressAlpha = 1f - (transitionTime / TRANSITION_DURATION);
-            }
-            
-            font.setColor(1, 1, 1, pressAlpha);
+            float pressY = 300f;
             font.draw(batch, "Press Enter To Start", pressX, pressY);
-            font.setColor(Color.WHITE);
         }
 
-        // Render Menu Items (Hanya saat TRANSITION atau MENU)
-        if (currentState == MenuState.TRANSITION || currentState == MenuState.MENU) {
+        if (currentState == MenuState.MENU) {
             float startX = 80f;
             float startY = 320f;
             float spacing = 50f;
 
-            float menuAlpha = 1f;
-            if (currentState == MenuState.TRANSITION) {
-                menuAlpha = transitionTime / TRANSITION_DURATION; // Fade-in effect on left side
-            }
-
             for (int i = 0; i < menuItems.length; i++) {
+                float itemY = startY - (i * spacing);
+
                 Color itemColor;
                 if (i == 1 && !hasSaveData) {
-                    itemColor = Color.DARK_GRAY.cpy();
+                    itemColor = Color.DARK_GRAY;
                 } else if (i == selectedIndex) {
-                    itemColor = Color.YELLOW.cpy();
+                    itemColor = Color.YELLOW;
                 } else {
-                    itemColor = Color.WHITE.cpy();
+                    itemColor = Color.WHITE;
                 }
-                
-                itemColor.a = menuAlpha;
+
                 font.setColor(itemColor);
 
                 String text = (i == selectedIndex) ? "> " + menuItems[i] : menuItems[i];
-                font.draw(batch, text, startX, startY - (i * spacing));
+                font.draw(batch, text, startX, itemY);
             }
             font.setColor(Color.WHITE);
-        }
-
-        // Logika Efek Fade-to-Black & Audio Fade-out
-        if (isFading) {
-            fadeAlpha += delta * 1.0f;
-            if (fadeAlpha >= 1f) {
-                fadeAlpha = 1f;
-                if (bgMusic != null) bgMusic.stop();
-                game.setScreen(new Chapter_One_OneScreen(game));
-            } else {
-                if (bgMusic != null) bgMusic.setVolume(0.2f * (1f - fadeAlpha)); // Fade out volume
-            }
-            batch.setColor(1, 1, 1, fadeAlpha);
-            batch.draw(blackScreen, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-            batch.setColor(Color.WHITE); // Reset warna agar render berikutnya aman
         }
 
         batch.end();
@@ -385,6 +301,7 @@ public class MainMenuScreen extends ScreenAdapter {
         font.dispose();
         titleFont.dispose();
         subTitleFont.dispose();
-        if (bgMusic != null) bgMusic.dispose();
+        if (bgMusic != null)
+            bgMusic.dispose();
     }
 }
