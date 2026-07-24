@@ -18,7 +18,9 @@ public class AnimationUtils {
                 frames.add(new TextureRegion(new Texture(path)));
             }
         }
-        Animation<TextureRegion> anim = new Animation<>(frameDuration, frames);
+        TextureRegion[] arr = new TextureRegion[frames.size];
+        for (int i = 0; i < frames.size; i++) arr[i] = frames.get(i);
+        Animation<TextureRegion> anim = new Animation<>(frameDuration, arr);
         anim.setPlayMode(mode);
         return anim;
     }

@@ -37,13 +37,20 @@ public class MainMenuScreen extends ScreenAdapter {
         SPLASH,
         TITLE,
         TRANSITION,
-        MENU
+        MENU,
+        PROLOGUE_TEASER
     }
 
     private MenuState currentState = MenuState.TITLE;
     private float stateTime = 0f;
     private float splashTime = 0f;
     private float transitionTime = 0f;
+
+    // Teaser Text Typewriter
+    private String teaserText = "Beberapa jam sebelum segalanya terjadi...";
+    private float teaserTimer = 0f;
+    private float typewriterTimer = 0f;
+    private int teaserCharIndex = 0;
 
     // Konfigurasi Waktu
     private final float FADE_IN_TIME = 2.0f;
@@ -99,22 +106,18 @@ public class MainMenuScreen extends ScreenAdapter {
         } else if (Gdx.files.internal("libgdx.png").exists()) {
             logoTexture = new Texture("libgdx.png");
         } else {
-            Pixmap pixmapLogo = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
-            pixmapLogo.setColor(Color.RED);
-            pixmapLogo.fill();
-            logoTexture = new Texture(pixmapLogo);
-            pixmapLogo.dispose();
+            logoTexture = bgImage;
         }
 
         // Initialize GlyphLayout
         glyphLayout = new GlyphLayout();
 
         // --- SETUP CUSTOM FONT (.TTF) UNTUK MENU ---
-        if (Gdx.files.internal("fonts/Merriweather-VariableFont_opsz,wdth,wght.ttf").exists()) {
+        if (Gdx.files.internal("fonts/menu.ttf").exists()) {
             FreeTypeFontGenerator menuGenerator = new FreeTypeFontGenerator(
-                    Gdx.files.internal("fonts/Merriweather-VariableFont_opsz,wdth,wght.ttf"));
+                    Gdx.files.internal("fonts/menu.ttf"));
             FreeTypeFontParameter menuParameter = new FreeTypeFontParameter();
-            menuParameter.size = 174;
+            menuParameter.size = 32;
             menuParameter.color = Color.WHITE;
             font = menuGenerator.generateFont(menuParameter);
             menuGenerator.dispose();
@@ -157,9 +160,21 @@ public class MainMenuScreen extends ScreenAdapter {
 
     private void handleInput() {
         if (currentState == MenuState.TITLE) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
+                currentState = MenuState.TRANSITION;
+                transitionTime = 0f;
+            }
+            return;
+        }
+
+        if (currentState == MenuState.PROLOGUE_TEASER) {
             if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER) || Gdx.input.isKeyJustPressed(Input.Keys.SPACE)
                     || Gdx.input.justTouched()) {
-                currentState = MenuState.MENU;
+                if (teaserCharIndex < teaserText.length()) {
+                    teaserCharIndex = teaserText.length();
+                } else {
+                    game.setScreen(new Chapter_One_OneScreen(game));
+                }
             }
             return;
         }
@@ -185,10 +200,9 @@ public class MainMenuScreen extends ScreenAdapter {
 
     private void selectMenuItem() {
         switch (selectedIndex) {
-            case 0: // New Game
-                if (bgMusic != null)
-                    bgMusic.stop();
-                game.setScreen(new Chapter_One_OneScreen(game));
+            case 0: // New Game - Transisi Fade to Black lalu Teks Teaser
+                isFading = true;
+                fadeAlpha = 0f;
                 break;
             case 1: // Continue
                 if (hasSaveData) {
@@ -223,7 +237,65 @@ public class MainMenuScreen extends ScreenAdapter {
         camera.update();
         batch.setProjectionMatrix(camera.combined);
 
+        // Update Logika Fade
+        if (isFading) {
+            fadeAlpha += delta * 1.2f;
+            if (bgMusic != null) {
+                bgMusic.setVolume(Math.max(0f, 0.16f * (1f - fadeAlpha)));
+            }
+            if (fadeAlpha >= 1.0f) {
+                fadeAlpha = 1.0f;
+                isFading = false;
+                if (bgMusic != null) {
+                    bgMusic.stop();
+                }
+                currentState = MenuState.PROLOGUE_TEASER;
+                teaserTimer = 0f;
+                typewriterTimer = 0f;
+                teaserCharIndex = 0;
+            }
+        }
+
         batch.begin();
+
+        if (currentState == MenuState.PROLOGUE_TEASER) {
+            teaserTimer += delta;
+            typewriterTimer += delta;
+
+            if (typewriterTimer >= 0.06f) {
+                typewriterTimer = 0f;
+                if (teaserCharIndex < teaserText.length()) {
+                    teaserCharIndex++;
+                }
+            }
+
+            if (teaserTimer >= 4.5f) {
+                game.setScreen(new Chapter_One_OneScreen(game));
+                batch.end();
+                return;
+            }
+
+            batch.setColor(1, 1, 1, 1);
+            batch.draw(blackScreen, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
+            String currentTeaser = teaserText.substring(0, teaserCharIndex);
+            glyphLayout.setText(subTitleFont, currentTeaser);
+            float textX = (WORLD_WIDTH - glyphLayout.width) / 2f;
+            float textY = WORLD_HEIGHT / 2f + 20f;
+            subTitleFont.setColor(Color.WHITE);
+            subTitleFont.draw(batch, currentTeaser, textX, textY);
+
+            if (teaserCharIndex >= teaserText.length()) {
+                glyphLayout.setText(font, "[ Tekan Enter ]");
+                float skipX = (WORLD_WIDTH - glyphLayout.width) / 2f;
+                font.setColor(Color.GRAY);
+                font.draw(batch, "[ Tekan Enter ]", skipX, 100f);
+                font.setColor(Color.WHITE);
+            }
+
+            batch.end();
+            return;
+        }
 
         batch.draw(bgImage, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
@@ -243,30 +315,49 @@ public class MainMenuScreen extends ScreenAdapter {
         float targetSubX = 85f;
         float targetSubY = WORLD_HEIGHT - 140f;
 
-        if (currentState == MenuState.TITLE) {
-            titleX = centerTitleX;
-            titleY = centerTitleY;
-            subX = centerSubX;
-            subY = centerSubY;
-        } else {
-            titleX = targetTitleX;
-            titleY = targetTitleY;
-            subX = targetSubX;
-            subY = targetSubY;
+        // Logika Animasi Pergeseran Teks Judul (Smooth Glide)
+        if (currentState == MenuState.TRANSITION) {
+            transitionTime += delta * 1.5f;
+            if (transitionTime >= 1.0f) {
+                transitionTime = 1.0f;
+                currentState = MenuState.MENU;
+            }
         }
+
+        float progress = 0f;
+        if (currentState == MenuState.TITLE) {
+            progress = 0f;
+        } else if (currentState == MenuState.TRANSITION) {
+            progress = transitionTime;
+        } else {
+            progress = 1.0f;
+        }
+
+        // Smooth Interpolation (Smoothstep)
+        float smoothProgress = progress * progress * (3f - 2f * progress);
+
+        titleX = centerTitleX + (targetTitleX - centerTitleX) * smoothProgress;
+        titleY = centerTitleY + (targetTitleY - centerTitleY) * smoothProgress;
+        subX = centerSubX + (targetSubX - centerSubX) * smoothProgress;
+        subY = centerSubY + (targetSubY - centerSubY) * smoothProgress;
 
         titleFont.draw(batch, "BEFORE THE END", titleX, titleY);
         subTitleFont.draw(batch, "A GAME BY GROUP 5", subX, subY);
 
-        if (currentState == MenuState.TITLE) {
+        // Tombol Press Enter To Start Memudar (Fade Out)
+        if (progress < 1.0f) {
+            float pressAlpha = 1.0f - smoothProgress;
+            font.setColor(1, 1, 1, pressAlpha);
             glyphLayout.setText(font, "Press Enter To Start");
             float pressX = (WORLD_WIDTH - glyphLayout.width) / 2;
             float pressY = 300f;
             font.draw(batch, "Press Enter To Start", pressX, pressY);
+            font.setColor(Color.WHITE);
         }
 
-        if (currentState == MenuState.MENU) {
-            float startX = 80f;
+        // Menu Meluncur Masuk Dari Kiri (-200f ke 80f)
+        if (progress > 0f) {
+            float startX = -200f + (80f - (-200f)) * smoothProgress;
             float startY = 320f;
             float spacing = 50f;
 
@@ -275,11 +366,11 @@ public class MainMenuScreen extends ScreenAdapter {
 
                 Color itemColor;
                 if (i == 1 && !hasSaveData) {
-                    itemColor = Color.DARK_GRAY;
+                    itemColor = new Color(0.3f, 0.3f, 0.3f, smoothProgress);
                 } else if (i == selectedIndex) {
-                    itemColor = Color.YELLOW;
+                    itemColor = new Color(Color.YELLOW.r, Color.YELLOW.g, Color.YELLOW.b, smoothProgress);
                 } else {
-                    itemColor = Color.WHITE;
+                    itemColor = new Color(1f, 1f, 1f, smoothProgress);
                 }
 
                 font.setColor(itemColor);
@@ -288,6 +379,13 @@ public class MainMenuScreen extends ScreenAdapter {
                 font.draw(batch, text, startX, itemY);
             }
             font.setColor(Color.WHITE);
+        }
+
+        // Efek Layar Redup (Fade Out)
+        if (isFading || fadeAlpha > 0f) {
+            batch.setColor(1, 1, 1, fadeAlpha);
+            batch.draw(blackScreen, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+            batch.setColor(1, 1, 1, 1);
         }
 
         batch.end();

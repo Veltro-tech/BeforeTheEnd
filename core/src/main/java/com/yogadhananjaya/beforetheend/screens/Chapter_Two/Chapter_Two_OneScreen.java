@@ -102,6 +102,12 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
     float impactTimer = 0f;
     float whiteFlashAlpha = 0f;
     int scene7AStep = 0;
+    Sound carHonkSfx;
+    Sound tireSkidSfx;
+    Sound carCrashSfx;
+    boolean honkPlayed = false;
+    boolean skidPlayed = false;
+    boolean crashPlayed = false;
 
     private static class NightmareText {
         String text;
@@ -199,6 +205,24 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
                 heartbeatSfx = Gdx.audio.newSound(Gdx.files.internal("SFX/heartbeat.mp3"));
         } catch (Exception e) {
             heartbeatSfx = null;
+        }
+        try {
+            if (Gdx.files.internal("SFX/car_honk.mp3").exists())
+                carHonkSfx = Gdx.audio.newSound(Gdx.files.internal("SFX/car_honk.mp3"));
+        } catch (Exception e) {
+            carHonkSfx = null;
+        }
+        try {
+            if (Gdx.files.internal("SFX/tire_skid.mp3").exists())
+                tireSkidSfx = Gdx.audio.newSound(Gdx.files.internal("SFX/tire_skid.mp3"));
+        } catch (Exception e) {
+            tireSkidSfx = null;
+        }
+        try {
+            if (Gdx.files.internal("SFX/car_crash.mp3").exists())
+                carCrashSfx = Gdx.audio.newSound(Gdx.files.internal("SFX/car_crash.mp3"));
+        } catch (Exception e) {
+            carCrashSfx = null;
         }
         try {
             if (Gdx.files.internal("SFX/tunetank.com_breathing-heavily-female.wav").exists())
@@ -524,12 +548,17 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
             if (ayuX > WORLD_WIDTH - 300f)
                 ayuX = WORLD_WIDTH - 300f;
             if (showMobilMerah) {
-                mobilMerahX -= delta * 250f;
+                mobilMerahX -= delta * 300f;
+                if (!honkPlayed && mobilMerahX <= WORLD_WIDTH - 300f) {
+                    honkPlayed = true;
+                    if (carHonkSfx != null) carHonkSfx.play(1.0f);
+                }
                 if (mobilMerahX - 200f <= ayuX) {
                     currentSubScene = SubScene.DRIVING_QTE;
                     qteTimer = 0f;
                     qteFinished = false;
                     qteSuccess = false;
+                    if (heartbeatSfx != null) heartbeatSfx.play(0.8f);
                 }
             }
         } else if (currentSubScene == SubScene.SCENE_7C) {
@@ -904,10 +933,18 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
                 qteSuccess = true;
                 qteFinished = true;
                 drivingShakeTimer = 0.5f;
+                if (!skidPlayed && tireSkidSfx != null) {
+                    skidPlayed = true;
+                    tireSkidSfx.play(1.0f);
+                }
             } else if (qteTimer >= 2.0f) {
                 qteSuccess = false;
                 qteFinished = true;
                 drivingShakeTimer = 1.5f;
+                if (!crashPlayed && carCrashSfx != null) {
+                    crashPlayed = true;
+                    carCrashSfx.play(1.0f);
+                }
             }
         } else if (qteSuccess) {
             if (drivingShakeTimer <= 0f) {
@@ -922,6 +959,10 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
                 impactStarted = true;
                 impactTimer = 0f;
                 whiteFlashAlpha = 0.8f;
+                if (!crashPlayed && carCrashSfx != null) {
+                    crashPlayed = true;
+                    carCrashSfx.play(1.0f);
+                }
             }
             impactTimer += delta;
             if (whiteFlashAlpha > 0f) {
