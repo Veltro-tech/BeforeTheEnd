@@ -73,7 +73,20 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
     private Texture scene6Bg; // Classroom (RUANG_KELAS.png)
 
     private Texture ayuIdle;
+    private Texture ayuDiam;
+    private Texture ayuPanikJam;
+    private Texture ayuSyok;
+    private Animation<TextureRegion> ayuKelelahanAnim;
+    private float ayuKelelahanTime = 0f;
+    private Texture ayuPusing;
+    private Texture ayuPingsan;
+    private Texture ayuMohon;
+    private Texture ayuHadapKiri;
+    private Texture ayuPakaianTidur;
     private Texture ayuSelesaiPresentasi;
+    private Music showerMusic;
+    private float gardenRingingTimer = 0f;
+    private boolean ringEarsStopped = false;
     private Texture textbox;
     private Texture blackTexture;
     private Texture whiteTexture;
@@ -112,10 +125,16 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
     private static class DialogInfo {
         String speaker;
         String text;
+        Texture expression;
 
         DialogInfo(String speaker, String text) {
+            this(speaker, text, null);
+        }
+
+        DialogInfo(String speaker, String text, Texture expression) {
             this.speaker = speaker;
             this.text = text;
+            this.expression = expression;
         }
     }
 
@@ -141,35 +160,13 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
     private boolean qteFinished = false;
     private boolean qteSuccess = false;
     private float drivingShakeTimer = 0f;
-    private final DialogInfo[] drivingDialogs = {
-            new DialogInfo("Ayu", "Aduh, jam berapa ini?! Jalanan macet banget lagi!"),
-            new DialogInfo("Ayu", "Kenapa semua orang harus keluar jam segini sih?!"),
-            new DialogInfo("Ayu", "Aku gak boleh telat! Sidang ini sangat penting!")
-    };
+    private DialogInfo[] drivingDialogs;
 
     // Classroom Cutscene Variables
     private int classroomStep = 0;
     private float classroomTimer = 0f;
-    private final DialogInfo[] classroomStartDialogs = {
-            new DialogInfo("Ayu", "Hah... hah... Akhirnya sampai kelas..."),
-            new DialogInfo("Dosen", "Ayu? Kamu terlihat sangat pucat dan kehabisan napas."),
-            new DialogInfo("Dosen", "Kamu tidak apa-apa? Sebaiknya kamu istirahat dulu di UKS."),
-            new DialogInfo("Ayu", "Tidak perlu, Pak! Saya tidak mau menunda lagi!"),
-            new DialogInfo("Ayu", "Tolong dengarkan presentasi project saya sekarang juga!"),
-            new DialogInfo("Dosen", "Tapi kondisi fisikmu tidak mendukung—"),
-            new DialogInfo("Ayu", "Saya mohon, Pak! Mulai sidangnya sekarang!")
-    };
-
-    private final DialogInfo[] classroomDialogs = {
-            new DialogInfo("Ayu", "...Dan demikianlah presentasi project akhir saya."),
-            new DialogInfo("Dosen",
-                    "Penjelasan yang cukup baik, Ayu. Tapi bagian awal penjelasanmu masih kurang jelas."),
-            new DialogInfo("Dosen", "Kamu terlihat sangat pucat. Apakah kamu ingin istirahat dulu?"),
-            new DialogInfo("Ayu", "Tidak perlu, Pak... Saya... saya baik-baik saja..."),
-            new DialogInfo("Teman", "Yu, wajahmu pucat banget. Jangan dipaksain!"),
-            new DialogInfo("Ayu", "Aku... aku harus menyelesaikan ini..."),
-            new DialogInfo("Ayu", "Kenapa tiba-tiba semuanya berputar...?")
-    };
+    private DialogInfo[] classroomStartDialogs;
+    private DialogInfo[] classroomDialogs;
 
     private float faintTimer = 0f;
     private float titleAlpha = 0f;
@@ -182,7 +179,32 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
     private int roomChoice = 0;
     private Sound messageSfx;
     private Sound doorSfx;
+    private Sound carHonkSfx;
+    private Sound tireSkidSfx;
+    private Sound carCrashSfx;
+    private Sound heartbeatSfx;
+    private boolean honkPlayed = false;
+    private boolean skidPlayed = false;
+    private boolean crashPlayed = false;
     private Music bgmMusic;
+    private Music shockBgmMusic;
+    private Sound ayuShockSfx;
+    private boolean ayuShockPlayed = false;
+    private Sound ringEarsSfx;
+    private Sound heavyBreathingSfx;
+    private Sound crowdChatterSfx;
+    private Sound footstepSfx;
+    private Sound showerSfx;
+    private Music classroomBgm;
+    private Sound bodyFallSfx;
+    private Sound dramaticBoomSfx;
+    private boolean gardenAudioPlayed = false;
+    private boolean crowdChatterPlayed = false;
+    private boolean bodyFallPlayed = false;
+    private boolean dramaticBoomPlayed = false;
+    private long crowdChatterId = -1;
+    private long heavyBreathingId = -1;
+    private long ringEarsId = -1;
     private long currentSfxId = -1;
 
     private final float WORLD_WIDTH = 1920f;
@@ -263,12 +285,12 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         if (Gdx.files.internal("backgrounds/siluet_mobil.png").exists()) {
             siluetMobil = new Texture("backgrounds/siluet_mobil.png");
         } else {
-            siluetMobil = createSolidTexture(Color.DARK_GRAY, 400, 300);
+            siluetMobil = null;
         }
         if (Gdx.files.internal("backgrounds/mobil_rusak.png").exists()) {
             mobilRusak = new Texture("backgrounds/mobil_rusak.png");
         } else {
-            mobilRusak = createSolidTexture(Color.GRAY, 400, 300);
+            mobilRusak = null;
         }
 
         // Scene 4 BG (TAMAN2.png)
@@ -292,16 +314,69 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
             scene6Bg = createSolidTexture(Color.BROWN, 1, 1);
         }
 
-        // Character Ayu
-        if (Gdx.files.internal("character/Ayu/diam-2.png").exists()) {
-            ayuIdle = new Texture("character/Ayu/diam-2.png");
+        // Character Ayu Expressions
+        if (Gdx.files.internal("character/ekspresi_ayu/diam-3.png").exists()) {
+            ayuDiam = new Texture("character/ekspresi_ayu/diam-3.png");
+        } else if (Gdx.files.internal("character/Ayu/diam-3.png").exists()) {
+            ayuDiam = new Texture("character/Ayu/diam-3.png");
         } else {
-            ayuIdle = createSolidTexture(Color.PINK, 64, 128);
+            ayuDiam = createSolidTexture(Color.PINK, 64, 128);
         }
+        ayuIdle = ayuDiam;
+
+        if (Gdx.files.internal("character/ekspresi_ayu/panik-liat-jam.png").exists()) {
+            ayuPanikJam = new Texture("character/ekspresi_ayu/panik-liat-jam.png");
+        } else {
+            ayuPanikJam = ayuDiam;
+        }
+
+        if (Gdx.files.internal("character/ekspresi_ayu/syok-berat-ketakutan.png").exists()) {
+            ayuSyok = new Texture("character/ekspresi_ayu/syok-berat-ketakutan.png");
+        } else {
+            ayuSyok = ayuDiam;
+        }
+
+        ayuKelelahanAnim = AnimationUtils.fromFiles("character/ekspresi_ayu/Kelelahan",
+            "kelelahan_frame", ".png", 1, 8, 0.15f, Animation.PlayMode.LOOP);
+        if (ayuKelelahanAnim.getKeyFrames().length == 0) {
+            ayuKelelahanAnim = null;
+        }
+
+        if (Gdx.files.internal("character/ekspresi_ayu/pusing.png").exists()) {
+            ayuPusing = new Texture("character/ekspresi_ayu/pusing.png");
+        } else {
+            ayuPusing = ayuDiam;
+        }
+
+        if (Gdx.files.internal("character/ekspresi_ayu/pingsan.png").exists()) {
+            ayuPingsan = new Texture("character/ekspresi_ayu/pingsan.png");
+        } else {
+            ayuPingsan = ayuDiam;
+        }
+
+        if (Gdx.files.internal("character/ekspresi_ayu/mohon.png").exists()) {
+            ayuMohon = new Texture("character/ekspresi_ayu/mohon.png");
+        } else {
+            ayuMohon = ayuDiam;
+        }
+
+        if (Gdx.files.internal("character/ekspresi_ayu/hadap-kiri.png").exists()) {
+            ayuHadapKiri = new Texture("character/ekspresi_ayu/hadap-kiri.png");
+        } else {
+            ayuHadapKiri = ayuDiam;
+        }
+        if (Gdx.files.internal("character/Ayu/Pakaian-tidur/pakaian-tidur.png").exists()) {
+            ayuPakaianTidur = new Texture("character/Ayu/Pakaian-tidur/pakaian-tidur.png");
+        } else {
+            ayuPakaianTidur = ayuDiam;
+        }
+
+        showerMusic = loadMusicSafely("SFX/shower.mp3");
+
         if (Gdx.files.internal("character/Ayu/selesai_presentasi_kiri.png").exists()) {
             ayuSelesaiPresentasi = new Texture("character/Ayu/selesai_presentasi_kiri.png");
         } else {
-            ayuSelesaiPresentasi = ayuIdle;
+            ayuSelesaiPresentasi = ayuPusing;
         }
 
         // UI Textbox
@@ -333,6 +408,33 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         blackTexture = createSolidTexture(Color.BLACK, 1, 1);
         whiteTexture = createSolidTexture(Color.WHITE, 1, 1);
 
+        // Populate Dialog Arrays with Specific Ayu Expressions
+        drivingDialogs = new DialogInfo[] {
+                new DialogInfo("Ayu", "Aduh, jam berapa ini?! Jalanan macet banget lagi!", ayuSyok),
+                new DialogInfo("Ayu", "Kenapa semua orang harus keluar jam segini sih?!", ayuSyok),
+                new DialogInfo("Ayu", "Aku gak boleh telat! Sidang ini sangat penting!", ayuSyok)
+        };
+
+        classroomStartDialogs = new DialogInfo[] {
+                new DialogInfo("Ayu", "Hah... hah... Akhirnya sampai kelas..."),
+                new DialogInfo("Dosen", "Ayu? Kamu terlihat sangat pucat dan kehabisan napas."),
+                new DialogInfo("Dosen", "Kamu tidak apa-apa? Sebaiknya kamu istirahat dulu di UKS."),
+                new DialogInfo("Ayu", "Tidak perlu, Pak! Saya tidak mau menunda lagi!", ayuDiam),
+                new DialogInfo("Ayu", "Tolong dengarkan presentasi project saya sekarang juga!", ayuDiam),
+                new DialogInfo("Dosen", "Tapi kondisi fisikmu tidak mendukung—"),
+                new DialogInfo("Ayu", "Saya mohon, Pak! Mulai sidangnya sekarang!", ayuMohon)
+        };
+
+        classroomDialogs = new DialogInfo[] {
+                new DialogInfo("Ayu", "...Dan demikianlah presentasi project akhir saya.", ayuSelesaiPresentasi),
+                new DialogInfo("Dosen", "Penjelasan yang cukup baik, Ayu. Tapi bagian awal penjelasanmu masih kurang jelas."),
+                new DialogInfo("Dosen", "Kamu terlihat sangat pucat. Apakah kamu ingin istirahat dulu?"),
+                new DialogInfo("Ayu", "Tidak perlu, Pak... Saya... saya baik-baik saja...", ayuPusing),
+                new DialogInfo("Teman", "Yu, wajahmu pucat banget. Jangan dipaksain!"),
+                new DialogInfo("Ayu", "Aku... aku harus menyelesaikan ini...", ayuPusing),
+                new DialogInfo("Ayu", "Kenapa tiba-tiba semuanya berputar...?", ayuPusing)
+        };
+
         // Load walk animations
         Array<TextureRegion> rightFrames = new Array<>();
         for (int i = 1; i <= 8; i++) {
@@ -354,18 +456,59 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
             walkLeftAnim = new Animation<>(0.1f, leftFrames, Animation.PlayMode.LOOP);
         }
 
-        if (Gdx.files.internal("SFX/sfx untuk message pop up.mp3").exists()) {
-            messageSfx = Gdx.audio.newSound(Gdx.files.internal("SFX/sfx untuk message pop up.mp3"));
+        messageSfx = loadSoundSafely("SFX/message_popup.mp3");
+        doorSfx = loadSoundSafely("SFX/door_open.mp3");
+        carHonkSfx = loadSoundSafely("SFX/car_honk.mp3");
+        tireSkidSfx = loadSoundSafely("SFX/tire_skid.mp3");
+        carCrashSfx = loadSoundSafely("SFX/car_crash.mp3");
+        heartbeatSfx = loadSoundSafely("SFX/heartbeat.mp3");
+        ayuShockSfx = loadSoundSafely("SFX/ayu_shock.mp3");
+        ringEarsSfx = loadSoundSafely("SFX/ring_ears.mp3");
+        heavyBreathingSfx = loadSoundSafely("SFX/heavy_breathing.wav");
+        crowdChatterSfx = loadSoundSafely("SFX/crowd_chatter_muffled.mp3");
+        footstepSfx = loadSoundSafely("SFX/footstep.mp3");
+        showerSfx = loadSoundSafely("SFX/shower.mp3");
+
+        classroomBgm = loadMusicSafely("SFX/calm_classroom_ambient.mp3");
+        if (classroomBgm != null) {
+            classroomBgm.setLooping(true);
+            classroomBgm.setVolume(0.4f);
         }
 
-        if (Gdx.files.internal("SFX/buka-pintu.mp3").exists()) {
-            doorSfx = Gdx.audio.newSound(Gdx.files.internal("SFX/buka-pintu.mp3"));
-        }
+        bodyFallSfx = loadSoundSafely("SFX/body_fall.mp3");
+        dramaticBoomSfx = loadSoundSafely("SFX/dramatic_cinematic_boom.mp3");
 
-        String bgmPath = "SFX/[Non Copyrighted Music] Scott Buckley - Growing Up [Piano].mp3";
-        if (Gdx.files.internal(bgmPath).exists()) {
-            bgmMusic = Gdx.audio.newMusic(Gdx.files.internal(bgmPath));
+        String bgmPath = "SFX/bgm_kamar.mp3";
+        if (!Gdx.files.internal(bgmPath).exists()) {
+            bgmPath = "SFX/[Non Copyrighted Music] Scott Buckley - Growing Up [Piano].mp3";
         }
+        bgmMusic = loadMusicSafely(bgmPath);
+        if (bgmMusic != null) {
+            bgmMusic.setLooping(true);
+            bgmMusic.setVolume(0.28f);
+        }
+    }
+
+    private Sound loadSoundSafely(String path) {
+        try {
+            if (Gdx.files.internal(path).exists()) {
+                return Gdx.audio.newSound(Gdx.files.internal(path));
+            }
+        } catch (Throwable t) {
+            System.err.println("Gagal memuat SFX [" + path + "]: " + t.getMessage());
+        }
+        return null;
+    }
+
+    private Music loadMusicSafely(String path) {
+        try {
+            if (Gdx.files.internal(path).exists()) {
+                return Gdx.audio.newMusic(Gdx.files.internal(path));
+            }
+        } catch (Throwable t) {
+            System.err.println("Gagal memuat BGM [" + path + "]: " + t.getMessage());
+        }
+        return null;
     }
 
     @Override
@@ -412,7 +555,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         if (Gdx.input.isKeyJustPressed(Input.Keys.F4)) {
             currentState = State.PLAY_DRIVING;
             ayuX = 100f;
-            ayuY = 100f;
+            ayuY = 80f;
             facingRight = true;
             showMobilMerah = true;
             mobilMerahX = WORLD_WIDTH + 200f;
@@ -424,7 +567,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         if (Gdx.input.isKeyJustPressed(Input.Keys.F5)) {
             currentState = State.PLAY_LOBBY;
             ayuX = 100f;
-            ayuY = 100f;
+            ayuY = 80f;
             facingRight = true;
         }
 
@@ -436,8 +579,8 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
 
         // Backgrounds
         if (currentState != State.TITLE_CARD) {
-             useInitialBg = false;
-             if (currentState == State.WAKING_UP) {
+            useInitialBg = false;
+            if (currentState == State.WAKING_UP) {
                 useInitialBg = true;
             } else if (currentState == State.DIALOG_ROOM) {
                 if (!midRoomDialogTriggered) {
@@ -451,8 +594,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 }
             }
 
-            if (currentState == State.WAKING_UP || currentState == State.DIALOG_ROOM || currentState == State.PLAY_ROOM
-                    || currentState == State.ROOM_TO_KITCHEN_TRANSITION) {
+            if (currentState == State.WAKING_UP || currentState == State.DIALOG_ROOM || currentState == State.PLAY_ROOM) {
                 if (useInitialBg) {
                     batch.draw(roomBgInitial, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
                 } else {
@@ -520,8 +662,22 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 currentState == State.SCENE6_CLASSROOM || currentState == State.DIALOG_DRIVING
                 || currentState == State.DIALOG_CLASSROOM_START) {
             renderDialogBox(delta);
-        } else if (currentState == State.ROOM_TO_KITCHEN_TRANSITION
-                || currentState == State.KITCHEN_BATH_TRANSITION
+        } else if (currentState == State.ROOM_TO_KITCHEN_TRANSITION) {
+            if (transitionTimer < 1.0f) {
+                batch.draw(roomBg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+                float alpha = transitionTimer / 1.0f;
+                batch.setColor(0, 0, 0, alpha);
+                batch.draw(blackTexture, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+                batch.setColor(Color.WHITE);
+            } else {
+                batch.draw(kitchenBg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+                batch.draw(ibuSprite, 1400f, 100f, 198f * 1.08f, 334f * 1.08f);
+                float alpha = 1.0f - ((transitionTimer - 1.0f) / 1.0f);
+                batch.setColor(0, 0, 0, alpha);
+                batch.draw(blackTexture, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+                batch.setColor(Color.WHITE);
+            }
+        } else if (currentState == State.KITCHEN_BATH_TRANSITION
                 || currentState == State.KITCHEN_TO_DRIVING_TRANSITION ||
                 currentState == State.DRIVING_TO_GARDEN_TRANSITION || currentState == State.GARDEN_TO_LOBBY_TRANSITION
                 ||
@@ -576,7 +732,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                     setupRoomDialog();
                     if (bgmMusic != null && !bgmMusic.isPlaying()) {
                         bgmMusic.setLooping(true);
-                        bgmMusic.setVolume(0.32f); // Diperkecil 20% (0.4f -> 0.32f)
+                        bgmMusic.setVolume(0.22f); // Diperkecil 30% dari 0.32f
                         bgmMusic.play();
                     }
                 }
@@ -598,11 +754,11 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                     midRoomDialogTriggered = true;
                     currentDialogs.clear();
                     currentDialogs.add(new DialogInfo("IBU AYU", "Ayu, turun yuk sarapan!"));
-                    currentDialogs.add(new DialogInfo("Ayu", "Iya, Bentar Lagi bu"));
+                    currentDialogs.add(new DialogInfo("Ayu", "Iya, Bentar Lagi bu", ayuDiam));
                     currentDialogs.add(new DialogInfo("NARRATOR",
                             "Waktu terus berdentang. Ayu tidak sadar, jam sudah menunjukkan pukul 7 tepat."));
                     currentDialogs.add(new DialogInfo("Ayu",
-                            "Jam tujuh?! Sial, sidang jam setengah delapan!, Aku Harus Segara Mandi"));
+                            "Jam tujuh?! Sial, sidang jam setengah delapan!, Aku Harus Segara Mandi", ayuPanikJam));
                     currentDialogIndex = 0;
                     startDialog();
                     currentState = State.DIALOG_ROOM;
@@ -610,9 +766,10 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 }
 
                 if (ayuX >= WORLD_WIDTH - 300f && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+                    if (doorSfx != null)
+                        doorSfx.play(1.0f);
                     currentState = State.ROOM_TO_KITCHEN_TRANSITION;
                     transitionTimer = 0f;
-                    if (doorSfx != null) doorSfx.play(1.0f);
                 }
                 break;
 
@@ -621,7 +778,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 if (transitionTimer >= 2.0f) {
                     currentState = State.DIALOG_KITCHEN;
                     ayuX = 100f;
-                    ayuY = 100f;
+                    ayuY = 80f;
                     facingRight = true;
                     setupKitchenDialog();
                 }
@@ -657,9 +814,10 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                     }
                 } else if (!sudahMandi) {
                     if (ayuX >= WORLD_WIDTH - 300f && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
-                            currentState = State.KITCHEN_BATH_TRANSITION;
-                            transitionTimer = 0f;
-                            if (doorSfx != null) doorSfx.play(1.0f);
+                        currentState = State.KITCHEN_BATH_TRANSITION;
+                        transitionTimer = 0f;
+                        if (doorSfx != null)
+                            doorSfx.play(1.0f);
                     }
                 } else {
                     if (ayuX <= 60f && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
@@ -678,10 +836,16 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 break;
 
             case KITCHEN_BATH_TRANSITION:
+                if (transitionTimer == 0f && showerSfx != null) showerSfx.loop(0.5f);
                 transitionTimer += delta;
                 if (transitionTimer >= 3.0f) {
+                    if (showerSfx != null) showerSfx.stop();
+                    if (showerMusic != null) {
+                        showerMusic.stop();
+                    }
                     sudahMandi = true;
                     rightDoorChecked = true;
+                    facingRight = false;
                     currentDialogs.clear();
                     currentDialogs.add(new DialogInfo("Ayu", "Aku Sudah selesai mandi"));
                     currentDialogs.add(new DialogInfo("Ayu",
@@ -722,9 +886,14 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                     }
                 } else if (!sudahMandi) {
                     if (ayuX >= WORLD_WIDTH - 300f && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
-                            currentState = State.KITCHEN_BATH_TRANSITION;
-                            transitionTimer = 0f;
-                            if (doorSfx != null) doorSfx.play(1.0f);
+                        currentState = State.KITCHEN_BATH_TRANSITION;
+                        transitionTimer = 0f;
+                        if (doorSfx != null)
+                            doorSfx.play(1.0f);
+                        if (showerMusic != null) {
+                            showerMusic.setLooping(true);
+                            showerMusic.play();
+                        }
                     }
                 } else {
                     if (ayuX <= 60f && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
@@ -748,36 +917,57 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                         || Gdx.input.justTouched()) {
                     advanceDialog(State.KITCHEN_TO_DRIVING_TRANSITION);
                     transitionTimer = 0f;
-                    if (doorSfx != null) doorSfx.play(1.0f);
                 }
                 break;
 
             case KITCHEN_TO_DRIVING_TRANSITION:
+                if (transitionTimer == 0f) {
+                    if (doorSfx != null)
+                        doorSfx.play(1.0f);
+                }
                 transitionTimer += delta;
                 if (transitionTimer >= 2.0f) {
                     currentState = State.PLAY_DRIVING;
                     ayuX = 100f;
-                    ayuY = 100f;
+                    ayuY = 80f;
                     facingRight = true;
                     showMobilMerah = true;
                     mobilMerahX = WORLD_WIDTH + 200f;
+                    honkPlayed = false;
+                    skidPlayed = false;
+                    crashPlayed = false;
                 }
                 break;
 
             case PLAY_DRIVING:
+                if (bgmMusic != null && !bgmMusic.isPlaying() && currentState != State.DIALOG_DRIVING) {
+                    bgmMusic.play();
+                }
                 // Auto-walk both toward each other
                 ayuX += delta * 200f;
                 isMoving = true;
                 facingRight = true;
-                if (ayuX > WORLD_WIDTH - 300f) ayuX = WORLD_WIDTH - 300f;
+                if (ayuX > WORLD_WIDTH - 300f)
+                    ayuX = WORLD_WIDTH - 300f;
                 if (showMobilMerah) {
-                    mobilMerahX -= delta * 250f;
+                    mobilMerahX -= delta * 300f;
+                    // Klakson mobil berbunyi keras sebagai peringatan awal
+                    if (!honkPlayed && mobilMerahX <= WORLD_WIDTH - 300f) {
+                        honkPlayed = true;
+                        if (carHonkSfx != null)
+                            carHonkSfx.play(1.0f);
+                    }
                     if (mobilMerahX - 200f <= ayuX) {
-                        redFlashAlpha = 0.3f;
+                        redFlashAlpha = 0.4f;
                         currentState = State.DRIVING_QTE;
                         qteTimer = 0f;
                         qteFinished = false;
                         qteSuccess = false;
+                        if (bgmMusic != null && bgmMusic.isPlaying()) {
+                            bgmMusic.stop();
+                        }
+                        if (heartbeatSfx != null)
+                            heartbeatSfx.play(0.8f);
                     }
                 }
                 break;
@@ -789,10 +979,26 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                         qteSuccess = true;
                         qteFinished = true;
                         drivingShakeTimer = 0.5f;
+                        if (!skidPlayed && tireSkidSfx != null) {
+                            skidPlayed = true;
+                            tireSkidSfx.play(1.0f);
+                        }
+                        if (!ayuShockPlayed && ayuShockSfx != null) {
+                            ayuShockPlayed = true;
+                            ayuShockSfx.play(1.0f);
+                        }
                     } else if (qteTimer >= 2.0f) {
                         qteSuccess = false;
                         qteFinished = true;
                         drivingShakeTimer = 1.5f;
+                        if (!crashPlayed && carCrashSfx != null) {
+                            crashPlayed = true;
+                            carCrashSfx.play(1.0f);
+                        }
+                        if (!ayuShockPlayed && ayuShockSfx != null) {
+                            ayuShockPlayed = true;
+                            ayuShockSfx.play(1.0f);
+                        }
                     }
                 } else if (qteSuccess) {
                     if (drivingShakeTimer <= 0f) {
@@ -807,12 +1013,17 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                         impactStarted = true;
                         impactTimer = 0f;
                         whiteFlashAlpha = 0.8f;
+                        if (!crashPlayed && carCrashSfx != null) {
+                            crashPlayed = true;
+                            carCrashSfx.play(1.0f);
+                        }
                     }
                     impactTimer += delta;
                     // White flash fade
                     if (whiteFlashAlpha > 0f) {
                         whiteFlashAlpha -= delta * 3f;
-                        if (whiteFlashAlpha < 0f) whiteFlashAlpha = 0f;
+                        if (whiteFlashAlpha < 0f)
+                            whiteFlashAlpha = 0f;
                     }
                     // Shadow pass after flash
                     if (impactTimer >= 0.3f && !showSiluetMobil) {
@@ -853,15 +1064,33 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 if (transitionTimer >= 2.0f) {
                     currentState = State.PLAY_GARDEN;
                     ayuX = 100f;
-                    ayuY = 100f;
+                    ayuY = 80f;
                     facingRight = true;
                 }
                 break;
 
             case PLAY_GARDEN:
+                if (!gardenAudioPlayed) {
+                    gardenAudioPlayed = true;
+                    if (ringEarsSfx != null)
+                        ringEarsId = ringEarsSfx.play(0.6f);
+                    if (heavyBreathingSfx != null)
+                        heavyBreathingId = heavyBreathingSfx.play(0.5f);
+                }
+                gardenRingingTimer += delta;
+                if (gardenRingingTimer >= 2.0f && !ringEarsStopped) {
+                    ringEarsStopped = true;
+                    if (ringEarsSfx != null && ringEarsId != -1) {
+                        ringEarsSfx.stop(ringEarsId);
+                    }
+                }
                 handlePlayerMovement(delta);
                 // Mentok kanan -> langsung pindah ke Scene 5 (Lobby/Lift)
                 if (ayuX >= WORLD_WIDTH - 300f) {
+                    if (ringEarsSfx != null && ringEarsId != -1)
+                        ringEarsSfx.stop(ringEarsId);
+                    if (heavyBreathingSfx != null && heavyBreathingId != -1)
+                        heavyBreathingSfx.stop(heavyBreathingId);
                     currentState = State.GARDEN_TO_LOBBY_TRANSITION;
                     transitionTimer = 0f;
                 }
@@ -890,7 +1119,13 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 if (transitionTimer >= 2.0f) {
                     currentState = State.PLAY_CLASSROOM;
                     ayuX = 100f; // Di dekat pintu masuk kelas
-                    ayuY = 100f;
+                    ayuY = 80f;
+                    if (classroomBgm != null && !classroomBgm.isPlaying()) {
+                        classroomBgm.play();
+                    }
+                    if (crowdChatterSfx != null) {
+                        crowdChatterId = crowdChatterSfx.loop(0.28f);
+                    }
                 }
                 break;
 
@@ -936,9 +1171,12 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                         currentDialogIndex++;
                         if (currentDialogIndex >= currentDialogs.size()) {
                             currentState = State.SCENE6_CLASSROOM;
+                            if (crowdChatterSfx != null && crowdChatterId != -1) {
+                                crowdChatterSfx.stop(crowdChatterId);
+                            }
                             isMoving = false;
                             ayuX = 1500f; // Berdiri di posisi presentasi (X: 1000f)
-                    ayuY = 70f;
+                            ayuY = 80f;
                             classroomStep = 0;
                             classroomTimer = 0f;
                             setupClassroomDialog();
@@ -970,6 +1208,16 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 break;
 
             case FAINT_SEQUENCE:
+                if (classroomBgm != null && classroomBgm.isPlaying()) {
+                    classroomBgm.stop();
+                }
+                if (!bodyFallPlayed) {
+                    bodyFallPlayed = true;
+                    if (bodyFallSfx != null)
+                        bodyFallSfx.play(1.0f);
+                    if (heartbeatSfx != null)
+                        heartbeatSfx.play(0.8f);
+                }
                 faintTimer += delta;
                 if (faintTimer >= 4.0f) {
                     currentState = State.TITLE_CARD;
@@ -979,6 +1227,11 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 break;
 
             case TITLE_CARD:
+                if (!dramaticBoomPlayed) {
+                    dramaticBoomPlayed = true;
+                    if (dramaticBoomSfx != null)
+                        dramaticBoomSfx.play(1.0f);
+                }
                 if (stateTimer < 3.0f) {
                     titleAlpha = stateTimer / 3.0f;
                 } else if (stateTimer >= 6.0f) {
@@ -991,6 +1244,9 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
 
     private void handlePlayerMovement(float delta) {
         isMoving = false;
+        if (currentDialogIndex >= 0 && currentDialogIndex < currentDialogs.size()) {
+            return;
+        }
         float speed = AYU_SPEED;
         if ((currentState == State.PLAY_DRIVING || currentState == State.PLAY_GARDEN
                 || currentState == State.PLAY_LOBBY)
@@ -1019,7 +1275,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         currentDialogs.clear();
         currentDialogs.add(
                 new DialogInfo("NARRATOR", "Senin pagi. Seperti biasa, kamar Ayu tidak pernah benar-benar gelap."));
-        currentDialogs.add(new DialogInfo("Ayu", "Sedikit lagi... tinggal bagian ini yang belum aku benerin."));
+        currentDialogs.add(new DialogInfo("Ayu", "Sedikit lagi... tinggal bagian ini yang belum aku benerin.", ayuDiam));
         currentDialogs.add(new DialogInfo("NARRATOR",
                 "Ini sudah hari kesekian Ayu terjaga semalaman, hanya demi satu projek yang menurutnya belum juga sempurna."));
         currentDialogIndex = 0;
@@ -1030,25 +1286,23 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         currentDialogs.clear();
         currentDialogs.add(new DialogInfo("NARRATOR", "Ayu bergegas turun ke dapur."));
         currentDialogs.add(new DialogInfo("IBU AYU", "Eh Ayu, sudah bangun. Itu Ibu sudah siapkan Apel di meja."));
-        currentDialogs.add(new DialogInfo("Ayu", "Iya, Bu! Aku sarapan cepat dulu ya, soalnya buru-buru."));
+        currentDialogs.add(new DialogInfo("Ayu", "Iya, Bu! Aku sarapan cepat dulu ya, soalnya buru-buru.", ayuDiam));
         currentDialogIndex = 0;
         startDialog();
     }
 
     private void setupRightDoorDialog() {
         currentDialogs.clear();
-        currentDialogs.add(new DialogInfo("Ayu", "*(Suara air mengucur cepat dari kamar mandi)*"));
-        currentDialogs.add(new DialogInfo("Ayu", "Wah, segar sekali! Sekarang badanku sudah bersih."));
-        currentDialogs.add(new DialogInfo("Ayu", "Ayo segera keluar lewat pintu kiri mentok untuk berangkat kuliah!"));
+        currentDialogs.add(new DialogInfo("Ayu", "*(Suara air mengucur cepat dari kamar mandi)*", ayuDiam));
+        currentDialogs.add(new DialogInfo("Ayu", "Wah, segar sekali! Sekarang badanku sudah bersih.", ayuDiam));
+        currentDialogs.add(new DialogInfo("Ayu", "Ayo segera keluar lewat pintu kiri mentok untuk berangkat kuliah!", ayuDiam));
         currentDialogIndex = 0;
         startDialog();
     }
 
     private void setupLeftDoorDialog() {
         currentDialogs.clear();
-        // currentDialogs.add(new DialogInfo("Ayu", "Nah, pintu keluar ini tidak
-        // dikunci."));
-        currentDialogs.add(new DialogInfo("Ayu", "Ayo cepat berangkat sebelum jalanan semakin macet!"));
+        currentDialogs.add(new DialogInfo("Ayu", "Ayo cepat berangkat sebelum jalanan semakin macet!", ayuHadapKiri));
         currentDialogIndex = 0;
         startDialog();
     }
@@ -1056,15 +1310,15 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
     private void setupDrivingDialog() {
         currentDialogs.clear();
         if (qteSuccess) {
-            currentDialogs.add(new DialogInfo("Ayu", "Fuuuh... Hampir saja! Untung refleksku cepat!"));
-            currentDialogs.add(new DialogInfo("Ayu", "Jalanan macet dan semua orang menyetir ugal-ugalan!"));
-            currentDialogs.add(new DialogInfo("Ayu", "Aku harus tetap fokus dan ngebut biar tidak terlambat sidang!"));
+            currentDialogs.add(new DialogInfo("Ayu", "Fuuuh... Hampir saja! Untung refleksku cepat!", ayuSyok));
+            currentDialogs.add(new DialogInfo("Ayu", "Jalanan macet dan semua orang menyetir ugal-ugalan!", ayuSyok));
+            currentDialogs.add(new DialogInfo("Ayu", "Aku harus tetap fokus dan ngebut biar tidak terlambat sidang!", ayuSyok));
         } else {
-            currentDialogs.add(new DialogInfo("Ayu", "AAAKH!! Rem mendadak!!"));
+            currentDialogs.add(new DialogInfo("Ayu", "AAAKH!! Rem mendadak!!", ayuSyok));
             currentDialogs.add(
-                    new DialogInfo("Ayu", "Kepalaku hampir membentur setir! Sialan, ugal-ugalan sekali mobil depan!"));
+                    new DialogInfo("Ayu", "Kepalaku hampir membentur setir! Sialan, ugal-ugalan sekali mobil depan!", ayuSyok));
             currentDialogs
-                    .add(new DialogInfo("Ayu", "Waktu sudah mepet, aku tidak punya pilihan selain terus tancap gas!"));
+                    .add(new DialogInfo("Ayu", "Waktu sudah mepet, aku tidak punya pilihan selain terus tancap gas!", ayuSyok));
         }
         currentDialogIndex = 0;
         startDialog();
@@ -1080,6 +1334,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
     }
 
     private void startDialog() {
+        isMoving = false;
         displayedDialogText = "";
         charIndex = 0;
         typeTimer = 0f;
@@ -1095,7 +1350,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         String fullText = currentDialogs.get(currentDialogIndex).text;
         if (charIndex < fullText.length()) {
             if (!fullText.trim().isEmpty() && messageSfx != null && currentSfxId == -1) {
-                currentSfxId = messageSfx.loop(0.8f);
+                currentSfxId = messageSfx.loop(1.0f);
             }
             typeTimer += delta;
             if (typeTimer >= typeSpeed) {
@@ -1139,7 +1394,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         DialogInfo dialog = currentDialogs.get(currentDialogIndex);
 
         float drawWidth = 198f * 1.08f;
-        float drawHeight = 361f * 1.08f;
+        float drawHeight = 422f;
 
         float bubbleWidth;
         float bubbleHeight;
@@ -1155,7 +1410,9 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
             bubbleWidth = showingChoice ? 420f : 650f;
             bubbleHeight = showingChoice ? 200f : 180f;
             bubbleX = camera.position.x + camera.viewportWidth / 2f - bubbleWidth - 20f;
-            bubbleY = ayuY + drawHeight + 20f;
+            bubbleY = (currentState == State.DIALOG_ROOM)
+                    ? ayuY + drawHeight * 1.5f + 20f
+                    : ayuY + drawHeight + 20f;
         } else if ("DOSEN".equalsIgnoreCase(dialog.speaker)) {
             bubbleWidth = 650f;
             bubbleHeight = 180f;
@@ -1186,7 +1443,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 if (txt != null && (txt.contains("Iya, bentar lagi") || txt.contains("Iya, Bentar Lagi"))) {
                     bubbleY = 750f;
                 } else {
-            bubbleY = ayuY + drawHeight * 1.3f + 20f;
+                    bubbleY = ayuY + drawHeight + 20f;
                 }
             }
 
@@ -1275,8 +1532,8 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         }
 
         if (showHint) {
-        float characterWidth = 198f * 1.08f;
-        float characterHeight = 334f * 1.08f;
+            float characterWidth = 198f * 1.08f;
+            float characterHeight = 334f * 1.08f;
             float buttonWidth = 380f;
             float buttonHeight = 65f;
 
@@ -1393,7 +1650,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
     }
 
     private void drawCharacter(float delta) {
-        float drawHeight = 334f * 1.08f;
+        float drawHeight = 422f;
         float drawWidth = 198f * 1.08f;
 
         if (isMoving) {
@@ -1424,20 +1681,53 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
             }
         } else {
             walkTime = 0f;
-            Texture activeIdleTex = ayuIdle;
-            if (currentState == State.SCENE6_CLASSROOM && ayuSelesaiPresentasi != null) {
-                // Cek apakah dialog yang aktif saat ini adalah bagian dari classroomDialogs (bukan start dialogs)
-                // Karena setupClassroomDialog mengisi currentDialogs dengan classroomDialogs
-                if (currentDialogIndex >= 0 && currentDialogIndex < currentDialogs.size()) {
-                    DialogInfo currentDialog = currentDialogs.get(currentDialogIndex);
-                    // Ayu harus menghadap kiri dengan sprite selesai presentasi ketika dialog dimulai
-                    activeIdleTex = ayuSelesaiPresentasi;
+            Texture activeIdleTex = null;
+
+            if (currentDialogIndex >= 0 && currentDialogIndex < currentDialogs.size()) {
+                DialogInfo info = currentDialogs.get(currentDialogIndex);
+                if (info.expression != null) {
+                    activeIdleTex = info.expression;
                 }
             }
-            if (activeIdleTex != null && activeIdleTex.getHeight() > 0) {
-                drawWidth = drawHeight * ((float) activeIdleTex.getWidth() / activeIdleTex.getHeight());
+
+            if (activeIdleTex == null) {
+                if (currentState == State.WAKING_UP || currentState == State.DIALOG_ROOM || currentState == State.PLAY_ROOM
+                        || currentState == State.DIALOG_KITCHEN || currentState == State.PLAY_KITCHEN
+                        || currentState == State.PLAY_KITCHEN_RIGHT_DOOR_CHECKED || currentState == State.PLAY_KITCHEN_LEFT_DOOR_CHECKED
+                        || currentState == State.DIALOG_KITCHEN_RIGHT_DOOR || currentState == State.DIALOG_KITCHEN_LEFT_DOOR) {
+                    activeIdleTex = sudahMandi ? ayuHadapKiri : (ayuPakaianTidur != null ? ayuPakaianTidur : ayuDiam);
+                } else if (currentState == State.PLAY_DRIVING || currentState == State.DRIVING_QTE || currentState == State.DIALOG_DRIVING) {
+                    activeIdleTex = (ayuSyok != null) ? ayuSyok : ayuDiam;
+                } else if (currentState == State.PLAY_GARDEN || currentState == State.PLAY_LOBBY) {
+                    activeIdleTex = ayuDiam; // animasi kelelahan ditangani terpisah
+                } else if (currentState == State.PLAY_CLASSROOM || currentState == State.DIALOG_CLASSROOM_START || currentState == State.SCENE6_CLASSROOM) {
+                    activeIdleTex = ayuDiam;
+                    if (currentState == State.SCENE6_CLASSROOM && ayuSelesaiPresentasi != null) {
+                        if (currentDialogIndex >= 0 && currentDialogIndex < currentDialogs.size()) {
+                            activeIdleTex = ayuSelesaiPresentasi;
+                        }
+                    }
+                } else if (currentState == State.FAINT_SEQUENCE) {
+                    activeIdleTex = (ayuPingsan != null) ? ayuPingsan : ayuDiam;
+                } else {
+                    activeIdleTex = ayuDiam;
+                }
             }
-            batch.draw(activeIdleTex, ayuX, ayuY, drawWidth, drawHeight);
+
+            if (activeIdleTex == null && (currentState == State.PLAY_GARDEN || currentState == State.PLAY_LOBBY)
+                    && ayuKelelahanAnim != null) {
+                ayuKelelahanTime += delta;
+                TextureRegion kelelahanFrame = ayuKelelahanAnim.getKeyFrame(ayuKelelahanTime);
+                if (kelelahanFrame.getRegionHeight() > 0) {
+                    drawWidth = drawHeight * ((float) kelelahanFrame.getRegionWidth() / kelelahanFrame.getRegionHeight());
+                }
+                batch.draw(kelelahanFrame, ayuX, ayuY, drawWidth, drawHeight);
+            } else {
+                if (activeIdleTex != null && activeIdleTex.getHeight() > 0) {
+                    drawWidth = drawHeight * ((float) activeIdleTex.getWidth() / activeIdleTex.getHeight());
+                }
+                batch.draw(activeIdleTex, ayuX, ayuY, drawWidth, drawHeight);
+            }
         }
     }
 
@@ -1451,6 +1741,24 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
             kitchenBg.dispose();
         if (scene3Bg != null)
             scene3Bg.dispose();
+        if (ayuDiam != null)
+            ayuDiam.dispose();
+        if (ayuPanikJam != null)
+            ayuPanikJam.dispose();
+        if (ayuSyok != null)
+            ayuSyok.dispose();
+        if (ayuKelelahanAnim != null)
+            for (TextureRegion region : ayuKelelahanAnim.getKeyFrames()) region.getTexture().dispose();
+        if (ayuPusing != null)
+            ayuPusing.dispose();
+        if (ayuPingsan != null)
+            ayuPingsan.dispose();
+        if (ayuMohon != null)
+            ayuMohon.dispose();
+        if (ayuHadapKiri != null)
+            ayuHadapKiri.dispose();
+        if (ayuPakaianTidur != null && ayuPakaianTidur != ayuDiam)
+            ayuPakaianTidur.dispose();
         if (mobilMerah != null)
             mobilMerah.dispose();
         if (kesakitan != null)
@@ -1485,6 +1793,32 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
             messageSfx.dispose();
         if (doorSfx != null)
             doorSfx.dispose();
+        if (carHonkSfx != null)
+            carHonkSfx.dispose();
+        if (tireSkidSfx != null)
+            tireSkidSfx.dispose();
+        if (carCrashSfx != null)
+            carCrashSfx.dispose();
+        if (heartbeatSfx != null)
+            heartbeatSfx.dispose();
+        if (ayuShockSfx != null)
+            ayuShockSfx.dispose();
+        if (ringEarsSfx != null)
+            ringEarsSfx.dispose();
+        if (heavyBreathingSfx != null)
+            heavyBreathingSfx.dispose();
+        if (crowdChatterSfx != null)
+            crowdChatterSfx.dispose();
+        if (footstepSfx != null)
+            footstepSfx.dispose();
+        if (bodyFallSfx != null)
+            bodyFallSfx.dispose();
+        if (dramaticBoomSfx != null)
+            dramaticBoomSfx.dispose();
+        if (classroomBgm != null) {
+            classroomBgm.stop();
+            classroomBgm.dispose();
+        }
         if (bgmMusic != null) {
             bgmMusic.stop();
             bgmMusic.dispose();
