@@ -182,8 +182,8 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
 
         // Scene 3 driving assets
         mobilMerah = new Texture("backgrounds/mobil-merah.png");
-        if (Gdx.files.internal("character/Ayu/kesakitan.png").exists()) {
-            kesakitan = new Texture("character/Ayu/kesakitan.png");
+        if (Gdx.files.internal("character/ekspresi_ayu/syok-berat-ketakutan.png").exists()) {
+            kesakitan = new Texture("character/ekspresi_ayu/syok-berat-ketakutan.png");
         } else {
             kesakitan = ayuIdleFrame.getTexture();
         }
@@ -507,6 +507,12 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
             return;
         }
 
+        // Debug: F1 ke Scene 1 (Chapter One OneScreen)
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F1)) {
+            game.setScreen(new com.yogadhananjaya.beforetheend.screens.Chapter_One_OneScreen(game));
+            return;
+        }
+
         // Debug: F10 ke Loop 3
         if (Gdx.input.isKeyJustPressed(Input.Keys.F10)) {
             game.setScreen(new Chapter_Two_Loop3Screen(game));
@@ -751,7 +757,7 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
                     batch.draw(siluetMobil, siluetMobilY * 0.5f, siluetMobilY, 500f, 375f);
                 }
                 if (showKesakitan && kesakitan != null) {
-                    batch.draw(kesakitan, ayuX, ayuY, 198f, 334f);
+                    batch.draw(kesakitan, ayuX, ayuY, 198f * 1.105f, 334f * 1.105f);
                 } else {
                     drawCharacter(delta);
                 }
@@ -1068,7 +1074,7 @@ public class Chapter_Two_OneScreen extends ScreenAdapter {
     }
 
     private void drawCharacter(float delta) {
-        float drawHeight = 361f;
+        float drawHeight = 361f * 1.105f;
         TextureRegion currentFrame = null;
 
         if (isWalking) {

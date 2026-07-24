@@ -228,7 +228,7 @@ public class Chapter_One_FiveScreen extends ScreenAdapter {
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
 
-        batch.draw(ayuIdleAnim.getKeyFrame(stateTime), 150, 220);
+        batch.draw(ayuIdleAnim.getKeyFrame(stateTime), 150, 220, 198f * 0.85f, 422f * 0.85f);
 
         // Render Teks Dialog (Kecuali sedang bertarung)
         if (currentDialog != null && !gameStateStack.peek().equals("IN_BATTLE")) {

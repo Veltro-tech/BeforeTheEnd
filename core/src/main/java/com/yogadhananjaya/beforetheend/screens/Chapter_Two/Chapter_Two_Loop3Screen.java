@@ -525,7 +525,7 @@ public class Chapter_Two_Loop3Screen extends ScreenAdapter {
     }
 
     private void drawCharacter(float delta) {
-        float drawHeight = 361f;
+        float drawHeight = 361f * 1.105f;
         TextureRegion currentFrame = null;
         if (isWalking) {
             walkTime += delta;

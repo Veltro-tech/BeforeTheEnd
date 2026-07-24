@@ -75,6 +75,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
     private Texture ayuIdle;
     private Texture ayuDiam;
     private Texture ayuPanikJam;
+    private Texture ayuPanikJam2;
     private Texture ayuSyok;
     private Animation<TextureRegion> ayuKelelahanAnim;
     private float ayuKelelahanTime = 0f;
@@ -228,6 +229,14 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
 
     @Override
     public void hide() {
+        if (classroomBgm != null) classroomBgm.stop();
+        if (bgmMusic != null) bgmMusic.stop();
+        if (crowdChatterSfx != null && crowdChatterId != -1) {
+            crowdChatterSfx.stop(crowdChatterId);
+        }
+        if (heavyBreathingSfx != null) heavyBreathingSfx.stop();
+        if (heartbeatSfx != null) heartbeatSfx.stop();
+        if (showerSfx != null) showerSfx.stop();
         dispose();
     }
 
@@ -277,8 +286,8 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         }
 
         // Impact assets
-        if (Gdx.files.internal("character/Ayu/kesakitan.png").exists()) {
-            kesakitan = new Texture("character/Ayu/kesakitan.png");
+        if (Gdx.files.internal("character/ekspresi_ayu/syok-berat-ketakutan.png").exists()) {
+            kesakitan = new Texture("character/ekspresi_ayu/syok-berat-ketakutan.png");
         } else {
             kesakitan = createSolidTexture(Color.PINK, 100, 100);
         }
@@ -330,6 +339,12 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
             ayuPanikJam = ayuDiam;
         }
 
+        if (Gdx.files.internal("character/ekspresi_ayu/panik-liat-jam-2.png").exists()) {
+            ayuPanikJam2 = new Texture("character/ekspresi_ayu/panik-liat-jam-2.png");
+        } else {
+            ayuPanikJam2 = ayuDiam;
+        }
+
         if (Gdx.files.internal("character/ekspresi_ayu/syok-berat-ketakutan.png").exists()) {
             ayuSyok = new Texture("character/ekspresi_ayu/syok-berat-ketakutan.png");
         } else {
@@ -337,12 +352,14 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         }
 
         ayuKelelahanAnim = AnimationUtils.fromFiles("character/ekspresi_ayu/Kelelahan",
-            "kelelahan_frame", ".png", 1, 8, 0.15f, Animation.PlayMode.LOOP);
+                "kelelahan_frame", ".png", 1, 8, 0.15f, Animation.PlayMode.LOOP);
         if (ayuKelelahanAnim.getKeyFrames().length == 0) {
             ayuKelelahanAnim = null;
         }
 
-        if (Gdx.files.internal("character/ekspresi_ayu/pusing.png").exists()) {
+        if (Gdx.files.internal("character/ekspresi_ayu/pusing-kiri.png").exists()) {
+            ayuPusing = new Texture("character/ekspresi_ayu/pusing-kiri.png");
+        } else if (Gdx.files.internal("character/ekspresi_ayu/pusing.png").exists()) {
             ayuPusing = new Texture("character/ekspresi_ayu/pusing.png");
         } else {
             ayuPusing = ayuDiam;
@@ -427,11 +444,12 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
 
         classroomDialogs = new DialogInfo[] {
                 new DialogInfo("Ayu", "...Dan demikianlah presentasi project akhir saya.", ayuSelesaiPresentasi),
-                new DialogInfo("Dosen", "Penjelasan yang cukup baik, Ayu. Tapi bagian awal penjelasanmu masih kurang jelas."),
+                new DialogInfo("Dosen",
+                        "Penjelasan yang cukup baik, Ayu. Tapi bagian awal penjelasanmu masih kurang jelas."),
                 new DialogInfo("Dosen", "Kamu terlihat sangat pucat. Apakah kamu ingin istirahat dulu?"),
-                new DialogInfo("Ayu", "Tidak perlu, Pak... Saya... saya baik-baik saja...", ayuPusing),
+                new DialogInfo("Ayu", "Tidak perlu, Pak... Saya... saya baik-baik saja..."),
                 new DialogInfo("Teman", "Yu, wajahmu pucat banget. Jangan dipaksain!"),
-                new DialogInfo("Ayu", "Aku... aku harus menyelesaikan ini...", ayuPusing),
+                new DialogInfo("Ayu", "Aku... aku harus menyelesaikan ini..."),
                 new DialogInfo("Ayu", "Kenapa tiba-tiba semuanya berputar...?", ayuPusing)
         };
 
@@ -551,6 +569,12 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         camera.update();
         batch.setProjectionMatrix(camera.combined);
 
+        // Debug Shortcut: F1 untuk merestart Chapter 1 dari awal
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F1)) {
+            game.setScreen(new Chapter_One_OneScreen(game));
+            return;
+        }
+
         // Debug Shortcut: F4 ke Scene 3, F5 ke Scene 5, F6 ke Chapter 2
         if (Gdx.input.isKeyJustPressed(Input.Keys.F4)) {
             currentState = State.PLAY_DRIVING;
@@ -594,7 +618,8 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 }
             }
 
-            if (currentState == State.WAKING_UP || currentState == State.DIALOG_ROOM || currentState == State.PLAY_ROOM) {
+            if (currentState == State.WAKING_UP || currentState == State.DIALOG_ROOM
+                    || currentState == State.PLAY_ROOM) {
                 if (useInitialBg) {
                     batch.draw(roomBgInitial, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
                 } else {
@@ -607,7 +632,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                     currentState == State.KITCHEN_TO_DRIVING_TRANSITION) {
                 batch.draw(kitchenBg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
                 // Draw Ibu static di Dapur
-                batch.draw(ibuSprite, 1400f, 100f, 198f * 1.08f, 334f * 1.08f);
+                batch.draw(ibuSprite, 1400f, 100f, 198f * 1.134f, 334f * 1.134f);
             } else if (currentState == State.PLAY_DRIVING || currentState == State.DRIVING_QTE
                     || currentState == State.DIALOG_DRIVING
                     || currentState == State.DRIVING_TO_GARDEN_TRANSITION) {
@@ -626,7 +651,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 }
                 // Kesakitan character on QTE fail
                 if (showKesakitan && kesakitan != null) {
-                    batch.draw(kesakitan, ayuX, ayuY, 198f * 1.08f, 334f * 1.08f);
+                    batch.draw(kesakitan, ayuX, ayuY, 198f * 1.1934f, 334f * 1.1934f);
                 }
             } else if (currentState == State.PLAY_GARDEN || currentState == State.GARDEN_TO_LOBBY_TRANSITION) {
                 batch.draw(scene4Bg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
@@ -646,9 +671,21 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                     currentState != State.DRIVING_QTE &&
                     currentState != State.DRIVING_TO_GARDEN_TRANSITION &&
                     currentState != State.GARDEN_TO_LOBBY_TRANSITION &&
-                    currentState != State.LOBBY_TO_CLASS_TRANSITION &&
-                    currentState != State.FAINT_SEQUENCE) {
-                drawCharacter(delta);
+                    currentState != State.LOBBY_TO_CLASS_TRANSITION) {
+                if (currentState == State.FAINT_SEQUENCE) {
+                    float drawHeight = 422f * 1.105f;
+                    float drawWidth = 198f * 1.1934f;
+                    if (ayuPingsan != null && ayuPingsan.getHeight() > 0) {
+                        drawWidth = drawHeight * ((float) ayuPingsan.getWidth() / ayuPingsan.getHeight());
+                    }
+                    float adjX = ayuX - WORLD_WIDTH * 0.10f;
+                    float adjY = ayuY - WORLD_HEIGHT * 0.30f; // Posisi ayu pingsan
+                    float adjW = drawWidth * 1.15f * 1.30f;
+                    float adjH = drawHeight * 1.15f * 1.30f;
+                    batch.draw(ayuPingsan, adjX, adjY, adjW, adjH);
+                } else {
+                    drawCharacter(delta);
+                }
             }
         }
 
@@ -671,7 +708,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 batch.setColor(Color.WHITE);
             } else {
                 batch.draw(kitchenBg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-                batch.draw(ibuSprite, 1400f, 100f, 198f * 1.08f, 334f * 1.08f);
+                batch.draw(ibuSprite, 1400f, 100f, 198f * 1.134f, 334f * 1.134f);
                 float alpha = 1.0f - ((transitionTimer - 1.0f) / 1.0f);
                 batch.setColor(0, 0, 0, alpha);
                 batch.draw(blackTexture, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
@@ -836,10 +873,12 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 break;
 
             case KITCHEN_BATH_TRANSITION:
-                if (transitionTimer == 0f && showerSfx != null) showerSfx.loop(0.5f);
+                if (transitionTimer == 0f && showerSfx != null)
+                    showerSfx.loop(0.6f);
                 transitionTimer += delta;
                 if (transitionTimer >= 3.0f) {
-                    if (showerSfx != null) showerSfx.stop();
+                    if (showerSfx != null)
+                        showerSfx.stop();
                     if (showerMusic != null) {
                         showerMusic.stop();
                     }
@@ -1200,6 +1239,8 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                         if (currentDialogIndex >= currentDialogs.size()) {
                             currentState = State.FAINT_SEQUENCE;
                             faintTimer = 0f;
+                            ayuX = 1500f;
+                            ayuY = 80f;
                         } else {
                             startDialog();
                         }
@@ -1275,7 +1316,8 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         currentDialogs.clear();
         currentDialogs.add(
                 new DialogInfo("NARRATOR", "Senin pagi. Seperti biasa, kamar Ayu tidak pernah benar-benar gelap."));
-        currentDialogs.add(new DialogInfo("Ayu", "Sedikit lagi... tinggal bagian ini yang belum aku benerin.", ayuDiam));
+        currentDialogs
+                .add(new DialogInfo("Ayu", "Sedikit lagi... tinggal bagian ini yang belum aku benerin.", ayuDiam));
         currentDialogs.add(new DialogInfo("NARRATOR",
                 "Ini sudah hari kesekian Ayu terjaga semalaman, hanya demi satu projek yang menurutnya belum juga sempurna."));
         currentDialogIndex = 0;
@@ -1286,7 +1328,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         currentDialogs.clear();
         currentDialogs.add(new DialogInfo("NARRATOR", "Ayu bergegas turun ke dapur."));
         currentDialogs.add(new DialogInfo("IBU AYU", "Eh Ayu, sudah bangun. Itu Ibu sudah siapkan Apel di meja."));
-        currentDialogs.add(new DialogInfo("Ayu", "Iya, Bu! Aku sarapan cepat dulu ya, soalnya buru-buru.", ayuDiam));
+        currentDialogs.add(new DialogInfo("Ayu", "Iya, Bu! Aku sarapan cepat dulu ya, soalnya buru-buru.", ayuPakaianTidur));
         currentDialogIndex = 0;
         startDialog();
     }
@@ -1295,7 +1337,8 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         currentDialogs.clear();
         currentDialogs.add(new DialogInfo("Ayu", "*(Suara air mengucur cepat dari kamar mandi)*", ayuDiam));
         currentDialogs.add(new DialogInfo("Ayu", "Wah, segar sekali! Sekarang badanku sudah bersih.", ayuDiam));
-        currentDialogs.add(new DialogInfo("Ayu", "Ayo segera keluar lewat pintu kiri mentok untuk berangkat kuliah!", ayuDiam));
+        currentDialogs.add(
+                new DialogInfo("Ayu", "Ayo segera keluar lewat pintu kiri mentok untuk berangkat kuliah!", ayuDiam));
         currentDialogIndex = 0;
         startDialog();
     }
@@ -1312,13 +1355,16 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         if (qteSuccess) {
             currentDialogs.add(new DialogInfo("Ayu", "Fuuuh... Hampir saja! Untung refleksku cepat!", ayuSyok));
             currentDialogs.add(new DialogInfo("Ayu", "Jalanan macet dan semua orang menyetir ugal-ugalan!", ayuSyok));
-            currentDialogs.add(new DialogInfo("Ayu", "Aku harus tetap fokus dan ngebut biar tidak terlambat sidang!", ayuSyok));
+            currentDialogs.add(
+                    new DialogInfo("Ayu", "Aku harus tetap fokus dan ngebut biar tidak terlambat sidang!", ayuSyok));
         } else {
             currentDialogs.add(new DialogInfo("Ayu", "AAAKH!! Rem mendadak!!", ayuSyok));
             currentDialogs.add(
-                    new DialogInfo("Ayu", "Kepalaku hampir membentur setir! Sialan, ugal-ugalan sekali mobil depan!", ayuSyok));
+                    new DialogInfo("Ayu", "Kepalaku hampir membentur setir! Sialan, ugal-ugalan sekali mobil depan!",
+                            ayuPusing));
             currentDialogs
-                    .add(new DialogInfo("Ayu", "Waktu sudah mepet, aku tidak punya pilihan selain terus tancap gas!", ayuSyok));
+                    .add(new DialogInfo("Ayu", "Waktu sudah mepet, aku tidak punya pilihan selain terus tancap gas!",
+                            ayuPanikJam2));
         }
         currentDialogIndex = 0;
         startDialog();
@@ -1341,6 +1387,15 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         if (messageSfx != null && currentSfxId != -1) {
             messageSfx.stop(currentSfxId);
             currentSfxId = -1;
+        }
+        if (currentDialogIndex >= 0 && currentDialogIndex < currentDialogs.size()) {
+            DialogInfo info = currentDialogs.get(currentDialogIndex);
+            if (info.text.contains("Dan demikianlah presentasi project akhir saya")) {
+                if (crowdChatterSfx != null && crowdChatterId != -1) {
+                    crowdChatterSfx.stop(crowdChatterId);
+                    crowdChatterId = -1;
+                }
+            }
         }
     }
 
@@ -1393,8 +1448,8 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
             return;
         DialogInfo dialog = currentDialogs.get(currentDialogIndex);
 
-        float drawWidth = 198f * 1.08f;
-        float drawHeight = 422f;
+        float drawWidth = 198f * 1.1934f;
+        float drawHeight = 422f * 1.105f;
 
         float bubbleWidth;
         float bubbleHeight;
@@ -1410,9 +1465,9 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
             bubbleWidth = showingChoice ? 420f : 650f;
             bubbleHeight = showingChoice ? 200f : 180f;
             bubbleX = camera.position.x + camera.viewportWidth / 2f - bubbleWidth - 20f;
-            bubbleY = (currentState == State.DIALOG_ROOM)
+            bubbleY = ((currentState == State.DIALOG_ROOM)
                     ? ayuY + drawHeight * 1.5f + 20f
-                    : ayuY + drawHeight + 20f;
+                    : ayuY + drawHeight + 20f) * 0.95f;
         } else if ("DOSEN".equalsIgnoreCase(dialog.speaker)) {
             bubbleWidth = 650f;
             bubbleHeight = 180f;
@@ -1538,7 +1593,7 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
             float buttonHeight = 65f;
 
             float buttonX = (ayuX + characterWidth / 2f) - (buttonWidth / 2f);
-            float buttonY = ayuY + characterHeight + 20f;
+            float buttonY = ayuY + characterHeight + 92f;
 
             if (buttonX < 20f)
                 buttonX = 20f;
@@ -1650,8 +1705,8 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
     }
 
     private void drawCharacter(float delta) {
-        float drawHeight = 422f;
-        float drawWidth = 198f * 1.08f;
+        float drawHeight = 422f * 1.105f;
+        float drawWidth = 198f * 1.1934f;
 
         if (isMoving) {
             float speedMultiplier = 1.0f;
@@ -1691,17 +1746,23 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
             }
 
             if (activeIdleTex == null) {
-                if (currentState == State.WAKING_UP || currentState == State.DIALOG_ROOM || currentState == State.PLAY_ROOM
+                if (currentState == State.WAKING_UP || currentState == State.DIALOG_ROOM
+                        || currentState == State.PLAY_ROOM
                         || currentState == State.DIALOG_KITCHEN || currentState == State.PLAY_KITCHEN
-                        || currentState == State.PLAY_KITCHEN_RIGHT_DOOR_CHECKED || currentState == State.PLAY_KITCHEN_LEFT_DOOR_CHECKED
-                        || currentState == State.DIALOG_KITCHEN_RIGHT_DOOR || currentState == State.DIALOG_KITCHEN_LEFT_DOOR) {
+                        || currentState == State.PLAY_KITCHEN_RIGHT_DOOR_CHECKED
+                        || currentState == State.PLAY_KITCHEN_LEFT_DOOR_CHECKED
+                        || currentState == State.DIALOG_KITCHEN_RIGHT_DOOR
+                        || currentState == State.DIALOG_KITCHEN_LEFT_DOOR) {
                     activeIdleTex = sudahMandi ? ayuHadapKiri : (ayuPakaianTidur != null ? ayuPakaianTidur : ayuDiam);
-                } else if (currentState == State.PLAY_DRIVING || currentState == State.DRIVING_QTE || currentState == State.DIALOG_DRIVING) {
+                } else if (currentState == State.PLAY_DRIVING || currentState == State.DRIVING_QTE
+                        || currentState == State.DIALOG_DRIVING) {
                     activeIdleTex = (ayuSyok != null) ? ayuSyok : ayuDiam;
-                } else if (currentState == State.PLAY_GARDEN || currentState == State.PLAY_LOBBY) {
-                    activeIdleTex = ayuDiam; // animasi kelelahan ditangani terpisah
-                } else if (currentState == State.PLAY_CLASSROOM || currentState == State.DIALOG_CLASSROOM_START || currentState == State.SCENE6_CLASSROOM) {
-                    activeIdleTex = ayuDiam;
+                } else if (currentState == State.PLAY_GARDEN || currentState == State.PLAY_LOBBY
+                        || currentState == State.PLAY_CLASSROOM || currentState == State.DIALOG_CLASSROOM_START
+                        || currentState == State.SCENE6_CLASSROOM) {
+                    if (ayuKelelahanAnim == null) {
+                        activeIdleTex = ayuDiam;
+                    }
                     if (currentState == State.SCENE6_CLASSROOM && ayuSelesaiPresentasi != null) {
                         if (currentDialogIndex >= 0 && currentDialogIndex < currentDialogs.size()) {
                             activeIdleTex = ayuSelesaiPresentasi;
@@ -1714,19 +1775,35 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
                 }
             }
 
-            if (activeIdleTex == null && (currentState == State.PLAY_GARDEN || currentState == State.PLAY_LOBBY)
+            if (activeIdleTex == null && (currentState == State.PLAY_GARDEN || currentState == State.PLAY_LOBBY
+                    || currentState == State.PLAY_CLASSROOM || currentState == State.DIALOG_CLASSROOM_START
+                    || currentState == State.SCENE6_CLASSROOM)
                     && ayuKelelahanAnim != null) {
                 ayuKelelahanTime += delta;
                 TextureRegion kelelahanFrame = ayuKelelahanAnim.getKeyFrame(ayuKelelahanTime);
                 if (kelelahanFrame.getRegionHeight() > 0) {
-                    drawWidth = drawHeight * ((float) kelelahanFrame.getRegionWidth() / kelelahanFrame.getRegionHeight());
+                    drawWidth = drawHeight
+                            * ((float) kelelahanFrame.getRegionWidth() / kelelahanFrame.getRegionHeight());
                 }
                 batch.draw(kelelahanFrame, ayuX, ayuY, drawWidth, drawHeight);
             } else {
                 if (activeIdleTex != null && activeIdleTex.getHeight() > 0) {
                     drawWidth = drawHeight * ((float) activeIdleTex.getWidth() / activeIdleTex.getHeight());
                 }
-                batch.draw(activeIdleTex, ayuX, ayuY, drawWidth, drawHeight);
+                if (activeIdleTex == ayuPingsan) {
+                    float adjX = ayuX - WORLD_WIDTH * 0.10f;
+                    float adjY = ayuY - WORLD_HEIGHT * 0.30f;
+                    float adjW = drawWidth * 1.15f * 1.30f;
+                    float adjH = drawHeight * 1.15f * 1.30f;
+                    batch.draw(activeIdleTex, adjX, adjY, adjW, adjH);
+                } else if (activeIdleTex == ayuSelesaiPresentasi || activeIdleTex == ayuPusing) {
+                    float adjX = ayuX - WORLD_WIDTH * 0.05f;
+                    float adjW = drawWidth * 1.15f;
+                    float adjH = drawHeight * 1.15f;
+                    batch.draw(activeIdleTex, adjX, ayuY, adjW, adjH);
+                } else {
+                    batch.draw(activeIdleTex, ayuX, ayuY, drawWidth, drawHeight);
+                }
             }
         }
     }
@@ -1748,7 +1825,8 @@ public class Chapter_One_OneScreen extends ScreenAdapter {
         if (ayuSyok != null)
             ayuSyok.dispose();
         if (ayuKelelahanAnim != null)
-            for (TextureRegion region : ayuKelelahanAnim.getKeyFrames()) region.getTexture().dispose();
+            for (TextureRegion region : ayuKelelahanAnim.getKeyFrames())
+                region.getTexture().dispose();
         if (ayuPusing != null)
             ayuPusing.dispose();
         if (ayuPingsan != null)

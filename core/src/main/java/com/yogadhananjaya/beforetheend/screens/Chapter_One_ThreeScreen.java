@@ -180,7 +180,7 @@ public class Chapter_One_ThreeScreen extends ScreenAdapter {
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
 
-        batch.draw(ayuIdleAnim.getKeyFrame(stateTime), 150, 220);
+        batch.draw(ayuIdleAnim.getKeyFrame(stateTime), 150, 220, 198f * 0.85f, 422f * 0.85f);
 
         if (currentDialog != null && gameStateStack.peek().equals("PLAYING")) {
             batch.draw(textbox, 50, 20, 1180, 200);

@@ -9,11 +9,13 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator.FreeTypeFontParameter;
+import com.badlogic.gdx.utils.Array;
 import com.yogadhananjaya.beforetheend.BeforeTheEndGame;
 
 public class MainMenuScreen extends ScreenAdapter {
@@ -26,7 +28,7 @@ public class MainMenuScreen extends ScreenAdapter {
     BitmapFont subTitleFont; // Font kustom untuk subtitle
 
     // Aset Gambar & Audio
-    Texture bgImage;
+    Animation<Texture> bgAnim;
     Texture blackScreen; // Digunakan untuk efek fade to black
     Texture logoTexture;
     Music bgMusic;
@@ -80,17 +82,26 @@ public class MainMenuScreen extends ScreenAdapter {
         // Pastikan kita menggunakan batch dari class utama
         batch = game.batch;
 
-        // Load Background (Pastikan file bg_mainmenu.png ada di folder assets/ui/)
-        if (Gdx.files.internal("ui/bg_mainmenu.png").exists()) {
-            bgImage = new Texture("ui/bg_mainmenu.png");
-        } else if (Gdx.files.internal("libgdx.png").exists()) {
-            bgImage = new Texture("libgdx.png");
+        // Load Background frames
+        Array<Texture> frames = new Array<>();
+        for (int i = 1; i <= 80; i++) {
+            String path = String.format("ui/main_menu-animasi/frame_%03d.png", i);
+            if (Gdx.files.internal(path).exists()) {
+                frames.add(new Texture(path));
+            }
+        }
+
+        if (frames.size > 0) {
+            bgAnim = new Animation<>(0.104f, frames, Animation.PlayMode.LOOP);
         } else {
+            // Fallback jika tidak ada frame
             Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
             pixmap.setColor(Color.BLUE);
             pixmap.fill();
-            bgImage = new Texture(pixmap);
+            Texture fallbackTex = new Texture(pixmap);
             pixmap.dispose();
+            frames.add(fallbackTex);
+            bgAnim = new Animation<>(1f, frames, Animation.PlayMode.LOOP);
         }
 
         // Membuat tekstur hitam polos 1x1 pixel untuk efek redup
@@ -106,7 +117,7 @@ public class MainMenuScreen extends ScreenAdapter {
         } else if (Gdx.files.internal("libgdx.png").exists()) {
             logoTexture = new Texture("libgdx.png");
         } else {
-            logoTexture = bgImage;
+            logoTexture = blackScreen;
         }
 
         // Initialize GlyphLayout
@@ -297,7 +308,23 @@ public class MainMenuScreen extends ScreenAdapter {
             return;
         }
 
-        batch.draw(bgImage, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+        Texture currentFrame = bgAnim.getKeyFrame(animTime);
+        float duration = bgAnim.getAnimationDuration();
+        float localTime = animTime % duration;
+
+        // Jika mendekati akhir animasi (0.2 detik terakhir sebelum loop ulang ke frame 1), lakukan crossfade manual ke frame 1
+        float crossFadeThreshold = 0.2f; 
+        if (duration - localTime < crossFadeThreshold) {
+            float progressFade = (localTime - (duration - crossFadeThreshold)) / crossFadeThreshold;
+            batch.setColor(1, 1, 1, 1 - progressFade);
+            batch.draw(currentFrame, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+            
+            batch.setColor(1, 1, 1, progressFade);
+            batch.draw(bgAnim.getKeyFrame(0f), 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+            batch.setColor(1, 1, 1, 1); // Reset color batch ke normal
+        } else {
+            batch.draw(currentFrame, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+        }
 
         float titleX, titleY;
         float subX, subY;
@@ -393,7 +420,9 @@ public class MainMenuScreen extends ScreenAdapter {
 
     @Override
     public void dispose() {
-        bgImage.dispose();
+        for (Object frame : bgAnim.getKeyFrames()) {
+            ((Texture) frame).dispose();
+        }
         blackScreen.dispose();
         logoTexture.dispose();
         font.dispose();

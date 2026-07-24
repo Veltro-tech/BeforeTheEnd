@@ -296,7 +296,7 @@ public class Chapter_Two_Loop2Screen extends ScreenAdapter {
     }
 
     private void drawCharacter(float delta) {
-        float drawHeight = 361f;
+        float drawHeight = 361f * 1.105f;
         TextureRegion currentFrame = null;
         if (isWalking) {
             walkTime += delta;
@@ -447,7 +447,7 @@ public class Chapter_Two_Loop2Screen extends ScreenAdapter {
         } else {
             batch.draw(activeBg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
             if (currentSubScene == SubScene.SCENE_8C_IBU_DIALOG) {
-                batch.draw(ibuSprite, 1400f, 100f, 198f, 334f);
+                batch.draw(ibuSprite, 1400f, 100f, 198f * 1.05f, 334f * 1.05f);
             }
             if (activeBg != bgKamarTidur)
                 drawCharacter(delta);

@@ -197,7 +197,7 @@ public class Chapter_One_TwoScreen extends ScreenAdapter {
         batch.begin();
 
         TextureRegion currentIdle = ayuIdleAnim.getKeyFrame(stateTime);
-        batch.draw(currentIdle, 150, 220);
+        batch.draw(currentIdle, 150, 220, 198f * 0.85f, 422f * 0.85f);
 
         // --- RENDER TEXTBOX JAUH LEBIH BERSIH ---
         // Kita tidak perlu lagi mengecek if (Narator / Sistem) karena sudah disaring di atas!
